@@ -271,6 +271,11 @@
                       label="Surat Edaran Orang Tua" 
                       imageMso="FillDown" 
                       onAction="SuratEdaranOrtu" />
+              <button id="DataPapanBOS" 
+                      getVisible="GetVisible"   
+                      label="Data Papan BOS" 
+                      imageMso="FillDown" 
+                      onAction="DataPapanBOS" />
               <button id="RKJM" 
                       getVisible="GetVisible"   
                       label="RKJM" 
