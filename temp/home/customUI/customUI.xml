@@ -196,6 +196,11 @@
                       label="Planning BOS Per Tahun" 
                       imageMso="FillRight" 
                       onAction="PlanningTahun" />
+              <button id="PlanningTahunFull" 
+                      getVisible="GetVisible"   
+                      label="Planning BOS Full" 
+                      imageMso="FillRight" 
+                      onAction="PlanningFull" />
               <button id="RekapBHP" 
                       getVisible="GetVisible"   
                       label="Rekap BHP" 
