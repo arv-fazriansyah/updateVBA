@@ -271,6 +271,11 @@
                       label="Instrument Verval" 
                       imageMso="FillDown" 
                       onAction="Verval" />
+              <button id="RBKPrograms" 
+                      getVisible="GetVisible"   
+                      label="RBK Program" 
+                      imageMso="FillDown" 
+                      onAction="RBKPrograms" />
               <button id="SuratEdaranOrtu" 
                       getVisible="GetVisible"   
                       label="Surat Edaran Orang Tua" 
