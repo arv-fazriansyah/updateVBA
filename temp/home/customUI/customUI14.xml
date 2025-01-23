@@ -273,7 +273,7 @@
                       onAction="Verval" />
               <button id="RBKPrograms" 
                       getVisible="GetVisible"   
-                      label="RBK Program" 
+                      label="Rencana Pemeliharaan" 
                       imageMso="FillDown" 
                       onAction="RBKPrograms" />
               <button id="SuratEdaranOrtu" 
