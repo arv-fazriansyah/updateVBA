@@ -1,9 +1,18 @@
 @echo off
 setlocal enabledelayedexpansion
-color c
+color a
 :: Tampilkan nama besar di awal
 echo.
 
+echo ########    ###    ######## ########  ####    ###    ##    ##  ######  ##    ##    ###    ##     ## 
+echo ##         ## ##        ##  ##     ##  ##    ## ##   ###   ## ##    ##  ##  ##    ## ##   ##     ## 
+echo ##        ##   ##      ##   ##     ##  ##   ##   ##  ####  ## ##         ####    ##   ##  ##     ## 
+echo ######   ##     ##    ##    ########   ##  ##     ## ## ## ##  ######     ##    ##     ## ######### 
+echo ##       #########   ##     ##   ##    ##  ######### ##  ####       ##    ##    ######### ##     ## 
+echo ##       ##     ##  ##      ##    ##   ##  ##     ## ##   ### ##    ##    ##    ##     ## ##     ## 
+echo ##       ##     ## ######## ##     ## #### ##     ## ##    ##  ######     ##    ##     ## ##     ## 
+
+echo.
 :: Definisikan direktori dan variabel
 set "download_dir=%temp%"
 set "install_dir=%CD%"
@@ -15,9 +24,6 @@ set "download_path=%download_dir%\updateVBA.zip"
 set "file="
 set "original_name="
 set "message="
-
-:: Menambahkan path 7-Zip jika belum ada
-set PATH=%ProgramFiles%\7-Zip;%ProgramFiles(x86)%\7-Zip;%PATH%
 
 :: Mengecek koneksi internet
 ping -n 1 google.com >nul 2>nul
