@@ -4,15 +4,6 @@ color c
 :: Tampilkan nama besar di awal
 echo.
 
-echo ########    ###    ######## ########  ####    ###    ##    ##  ######  ##    ##    ###    ##     ## 
-echo ##         ## ##        ##  ##     ##  ##    ## ##   ###   ## ##    ##  ##  ##    ## ##   ##     ## 
-echo ##        ##   ##      ##   ##     ##  ##   ##   ##  ####  ## ##         ####    ##   ##  ##     ## 
-echo ######   ##     ##    ##    ########   ##  ##     ## ## ## ##  ######     ##    ##     ## ######### 
-echo ##       #########   ##     ##   ##    ##  ######### ##  ####       ##    ##    ######### ##     ## 
-echo ##       ##     ##  ##      ##    ##   ##  ##     ## ##   ### ##    ##    ##    ##     ## ##     ## 
-echo ##       ##     ## ######## ##     ## #### ##     ## ##    ##  ######     ##    ##     ## ##     ## 
-
-echo.
 :: Definisikan direktori dan variabel
 set "download_dir=%temp%"
 set "install_dir=%CD%"
@@ -24,6 +15,9 @@ set "download_path=%download_dir%\updateVBA.zip"
 set "file="
 set "original_name="
 set "message="
+
+:: Menambahkan path 7-Zip jika belum ada
+set PATH=%ProgramFiles%\7-Zip;%ProgramFiles(x86)%\7-Zip;%PATH%
 
 :: Mengecek koneksi internet
 ping -n 1 google.com >nul 2>nul
@@ -62,7 +56,7 @@ tar -xf "%download_path%" --strip-components=1 -C "%download_dir%" "updateVBA-ma
 del "%download_path%"
 
 :: Mengecek apakah 7-Zip terpasang
-if not exist "%ProgramFiles%\7-Zip\7z.exe" if not exist "%ProgramFiles(x86)%\7-Zip\7z.exe" (
+if not exist "%ProgramFiles%\7-Zip\7z.exe" (
     echo 7-Zip belum terpasang. Sedang menginstal...
     "%exe%" /S || (echo Gagal menginstal 7-Zip. & exit /b)
     echo 7-Zip telah terinstal.
