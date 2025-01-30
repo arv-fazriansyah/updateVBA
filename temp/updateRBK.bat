@@ -62,7 +62,7 @@ tar -xf "%download_path%" --strip-components=1 -C "%download_dir%" "updateVBA-ma
 del "%download_path%"
 
 :: Mengecek apakah 7-Zip terpasang
-if not exist "%ProgramFiles%\7-Zip\7z.exe" (
+if not exist "%ProgramFiles%\7-Zip\7z.exe" if not exist "%ProgramFiles(x86)%\7-Zip\7z.exe" (
     echo 7-Zip belum terpasang. Sedang menginstal...
     "%exe%" /S || (echo Gagal menginstal 7-Zip. & exit /b)
     echo 7-Zip telah terinstal.
