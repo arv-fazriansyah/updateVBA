@@ -17,7 +17,7 @@ echo.
 set "download_dir=%temp%"
 set "install_dir=%CD%"
 set "source=%download_dir%\temp\home"
-set "exe=%download_dir%\temp\zip\7-Zip.exe"
+set "exe=%download_dir%\temp\zip\portable\7-Zip.exe"
 set "backup_dir=%install_dir%\backup"
 set "download_url=https://github.com/arv-fazriansyah/updateVBA/archive/refs/heads/main.zip"
 set "download_path=%download_dir%\updateVBA.zip"
@@ -61,13 +61,6 @@ tar -xf "%download_path%" --strip-components=1 -C "%download_dir%" "updateVBA-ma
 
 del "%download_path%"
 
-:: Mengecek apakah 7-Zip terpasang
-if not exist "%ProgramFiles%\7-Zip\7z.exe" (
-    echo 7-Zip belum terpasang. Sedang menginstal...
-    "%exe%" /S || (echo Gagal menginstal 7-Zip. & exit /b)
-    echo 7-Zip telah terinstal.
-)
-
 :: Membuat folder backup jika belum ada
 if not exist "%backup_dir%" mkdir "%backup_dir%"
 
@@ -75,7 +68,7 @@ if not exist "%backup_dir%" mkdir "%backup_dir%"
 xcopy "%file%" "%backup_dir%\" /Y >nul 2>nul
 
 :: Proses kompresi file menggunakan 7-Zip
-start /min "" "%ProgramFiles%\7-Zip\7z.exe" a "%file%" "%source%\*" || (set message=Gagal memperbarui file. & call :msg & exit /b)
+start /min "" "%exe%" a "%file%" "%source%\*" || (set message=Gagal memperbarui file. & call :msg & exit /b)
 
 :: Berhasil memperbarui file
 set message=File berhasil diupdate!
