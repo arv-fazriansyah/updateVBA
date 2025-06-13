@@ -69,6 +69,12 @@
                       imageMso="FillRight" 
                       onAction="BOSKINPlanningTahunFull2" />
                </menu>
+              <button id="menuboskinRKAS" 
+                      getVisible="GetVisible"  
+                      label="RKAS"
+                      size="large" 
+                      image="analisis" 
+                      onAction="boskinRKAS" />
               <button id="menuboskinROB" 
                       getVisible="GetVisible"  
                       label="RKAS ROB"
