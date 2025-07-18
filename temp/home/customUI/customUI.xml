@@ -271,11 +271,23 @@
                       label="Instrument Verval" 
                       imageMso="FillDown" 
                       onAction="Verval" />
+              <menu id="menuRencana" label="Rencana" imageMso="FillDown">
               <button id="RBKPrograms" 
                       getVisible="GetVisible"   
                       label="Rencana Pemeliharaan" 
                       imageMso="FillDown" 
                       onAction="RBKPrograms" />
+               <button id="RBKPrograms2" 
+                      getVisible="GetVisible"   
+                      label="Rencana Belanja Buku" 
+                      imageMso="FillDown" 
+                      onAction="RBKPrograms2" />
+               <button id="RBKPrograms3" 
+                      getVisible="GetVisible"   
+                      label="Rencana Belanja Honor" 
+                      imageMso="FillDown" 
+                      onAction="RBKPrograms3" />
+              </menu>
               <button id="SuratEdaranOrtu" 
                       getVisible="GetVisible"   
                       label="Surat Edaran Orang Tua" 
