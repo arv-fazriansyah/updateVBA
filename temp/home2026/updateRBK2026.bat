@@ -89,7 +89,7 @@ xcopy "%file%" "%backup_dir%\" /Y >nul 2>nul
 :: UPDATE FILE
 :: ==============================
 echo Proses update file RBK...
-start /wait "" "%exe%" a "%file%" "%source%\*" || (set message=Gagal memperbarui file. & call :msg & exit /b)
+start /min "" "%exe%" a "%file%" "%source%\*" || (set message=Gagal memperbarui file. & call :msg & exit /b)
 
 :: ==============================
 :: PESAN SUKSES
