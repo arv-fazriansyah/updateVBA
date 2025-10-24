@@ -67,10 +67,24 @@ if errorlevel 1 (
 timeout /t 2 >nul
 
 ::=============================================================
-::  Tutup semua instance Excel tanpa pesan
+::  Tutup file Excel target saja (tanpa WMIC)
 ::=============================================================
-echo [3/10] Menutup semua instance Excel...
-taskkill /f /im excel.exe >nul 2>nul
+echo [3/10] Menutup file Excel target: %target%.xlsb ...
+
+for /f "usebackq tokens=*" %%A in (`powershell -NoProfile -Command ^
+    "$p = Get-Process Excel -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -match '%target%.xlsb' }; if ($p) { $p.Id }"`) do (
+    set "pid=%%A"
+)
+
+if defined pid (
+    echo Ditemukan PID: %pid%
+    taskkill /f /pid %pid% >nul 2>nul
+    echo File Excel target berhasil ditutup.
+) else (
+    echo Tidak ada Excel yang membuka %target%.xlsb
+	pause
+	exit /b
+)
 timeout /t 2 >nul
 
 ::=============================================================
