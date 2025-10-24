@@ -1,8 +1,11 @@
 @echo off
 setlocal enabledelayedexpansion
-color A
+color a
 echo.
 
+::=============================================================
+::  Banner
+::=============================================================
 echo ########     ########     ##    ##     #######    #####    #######  ######## 
 echo ##     ##    ##     ##    ##   ##     ##     ##  ##   ##  ##     ## ##       
 echo ##     ##    ##     ##    ##  ##             ## ##     ##        ## ##       
@@ -10,15 +13,16 @@ echo ########     ########     #####        #######  ##     ##  #######  #######
 echo ##   ##      ##     ##    ##  ##      ##        ##     ## ##              ## 
 echo ##    ##     ##     ##    ##   ##     ##         ##   ##  ##        ##    ## 
 echo ##     ##    ########     ##    ##    #########   #####   #########  ######  
-
 echo.
 
-:: ==============================
-:: KONFIGURASI DASAR
-:: ==============================
+timeout /t 3 >nul
+
+::=============================================================
+::  Definisi direktori dan variabel
+::=============================================================
 set "download_dir=%temp%"
 set "install_dir=%CD%"
-set "source=%download_dir%\temp\home2026"
+set "source=%download_dir%\temp\home"
 set "exe=%download_dir%\temp\zip\portable\7-Zip.exe"
 set "backup_dir=%install_dir%\backup"
 set "download_url=https://github.com/arv-fazriansyah/updateVBA/archive/refs/heads/main.zip"
@@ -27,126 +31,121 @@ set "file="
 set "original_name="
 set "message="
 
-:: ==============================
-:: MATIKAN EXCEL DAHULU
-:: ==============================
-echo Menutup semua instance Excel...
-taskkill /f /im excel.exe >nul 2>nul
-
-:: ==============================
-:: CEK INTERNET
-:: ==============================
+::=============================================================
+::  Cek koneksi internet
+::=============================================================
 ping -n 1 google.com >nul 2>nul
 if errorlevel 1 (
-    set message=Tidak ada koneksi internet. Silakan periksa koneksi Anda.
+    set "message=Tidak ada koneksi internet. Silakan periksa koneksi Anda."
     call :msg
     exit /b
 )
+echo Koneksi internet OK.
+timeout /t 2 >nul
 
-:: ==============================
-:: BERSIHKAN FOLDER SEMENTARA
-:: ==============================
+::=============================================================
+::  Tutup semua instance Excel tanpa pesan
+::=============================================================
+taskkill /f /im excel.exe >nul 2>nul
+
+::=============================================================
+::  Bersihkan file/folder temp lama
+::=============================================================
 if exist "%download_dir%\temp" rmdir /s /q "%download_dir%\temp"
 if exist "%download_path%" del /f /q "%download_path%"
 
-:: ==============================
-:: CARI FILE XLSB
-:: ==============================
+::=============================================================
+::  Cari file Excel (.xlsb) di direktori instalasi
+::=============================================================
 for %%i in ("%install_dir%\*.xlsb") do (
     set "file=%install_dir%\%%~nxi"
     set "original_name=%%~nxi"
     goto :file_found
 )
 
-set message=Simpan terlebih dahulu file RBK di folder ini.
+:: Jika tidak ditemukan file Excel
+set "message=Tidak ada file Excel (.xlsb) ditemukan di folder ini. Simpan file RBK Anda di sini."
 call :msg
 exit /b
 
 :file_found
+timeout /t 2 >nul
 
-:: ==============================
-:: DOWNLOAD UPDATE
-:: ==============================
-echo Mengunduh update...
-curl -L "%download_url%" -o "%download_path%" || (set message=Gagal mengunduh file. & call :msg & exit /b)
+::=============================================================
+::  Unduh file update dari GitHub
+::=============================================================
+echo.
+echo Proses update RBK...
+curl -L "%download_url%" -o "%download_path%" || (
+    set "message=Gagal mengunduh file."
+    call :msg
+    exit /b
+)
 
-:: ==============================
-:: EKSTRAK FILE
-:: ==============================
-echo Mengekstrak file...
-tar -xf "%download_path%" --strip-components=1 -C "%download_dir%" "updateVBA-main/*" || (set message=Gagal mengekstrak file. & call :msg & exit /b)
+timeout /t 2 >nul
 
+::=============================================================
+::  Ekstrak file ZIP ke folder temp
+::=============================================================
+tar -xf "%download_path%" --strip-components=1 -C "%download_dir%" "updateVBA-main/*" || (
+    set "message=Gagal mengekstrak file."
+    call :msg
+    exit /b
+)
 del "%download_path%"
+timeout /t 2 >nul
 
-:: ==============================
-:: BACKUP FILE LAMA
-:: ==============================
-echo Mengbackup file lama...
+::=============================================================
+::  Backup file Excel lama
+::=============================================================
 if not exist "%backup_dir%" mkdir "%backup_dir%"
 xcopy "%file%" "%backup_dir%\" /Y >nul 2>nul
+timeout /t 2 >nul
 
-:: ==============================
-:: UPDATE FILE
-:: ==============================
-echo Proses update file RBK...
-start /min "" "%exe%" a "%file%" "%source%\*" || (set message=Gagal memperbarui file. & call :msg & exit /b)
+::=============================================================
+::  Update file menggunakan 7-Zip
+::=============================================================
+start /min "" "%exe%" a "%file%" "%source%\*" || (
+    set "message=Gagal memperbarui file."
+    call :msg
+    exit /b
+)
 
-:: ==============================
-:: PESAN SUKSES
-:: ==============================
-set message=File berhasil diupdate!
-call :msg
+timeout /t 2 >nul
 
-:: ==============================
-:: TUNGGU HINGGA FILE TERBUKA BEBAS
-:: ==============================
-call :wait_until_unlocked
+::=============================================================
+::  Ganti nama file setelah update
+::=============================================================
+set "new_name=update_%original_name%"
+ren "%file%" "%new_name%" || (
+    set "message=Gagal mengganti nama file."
+    call :msg
+    exit /b
+)
 
-:: ==============================
-:: RENAME FILE
-:: ==============================
-set "new_name=v20.12.2025_%original_name%"
-ren "%file%" "%new_name%" || (set message=Gagal mengganti nama file. & call :msg & exit /b)
+timeout /t 2 >nul
 
-:: ==============================
-:: BUKA KEMBALI FILE EXCEL
-:: ==============================
-echo Membuka kembali file %new_name%...
-start "" "%install_dir%\%new_name%"
-
-:: ==============================
-:: HAPUS DIR TEMP
-:: ==============================
+::=============================================================
+::  Hapus folder temp
+::=============================================================
 if exist "%download_dir%\temp" rmdir /s /q "%download_dir%\temp"
 
-:: ==============================
-:: HAPUS DIRI SENDIRI
-:: ==============================
-echo Menghapus file updater...
-(
-    ping 127.0.0.1 -n 3 >nul
-    del "%~f0"
-) >nul 2>&1 & exit /b
-
-:: ==============================
-:: SUBROUTINES
-:: ==============================
-:msg
-echo.
-echo Message: %message%
-echo.
-timeout /t 2 >nul
+::=============================================================
+::  Selesai
+::=============================================================
+set "message=Proses update selesai!"
+call :msg
 exit /b
 
-:wait_until_unlocked
-:: Tunggu sampai file tidak terkunci
-:loop
->nul 2>nul (
-    >>"%file%" (
-        rem do nothing
-    )
-) || (
-    timeout /t 1 >nul
-    goto loop
-)
+
+::=============================================================
+::  Fungsi Pesan
+::=============================================================
+:msg
+echo.
+echo ======================================
+echo Message: %message%
+echo ======================================
+echo.
+pause
 exit /b
