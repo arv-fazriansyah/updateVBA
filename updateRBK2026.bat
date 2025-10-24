@@ -194,5 +194,5 @@ echo     %message%
 echo ============================================
 echo.
 pause
-start "" cmd /c del "%~f0"
+(del "%~f0") >nul 2>&1
 exit /b
