@@ -5,7 +5,6 @@ color a
 ::=============================================================
 ::  Ambil nama file batch tanpa ekstensi (misal: v25.11.2025[MASTER_RBK2026])
 ::=============================================================
-taskkill /f /im excel.exe >nul 2>nul
 set "batname=%~n0"
 
 :: Pisahkan versi dan nama target di antara tanda []
