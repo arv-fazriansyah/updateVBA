@@ -67,13 +67,15 @@ if errorlevel 1 (
 timeout /t 2 >nul
 
 ::=============================================================
-::  Tutup file Excel target saja (tanpa WMIC)
+::  Tutup file Excel target saja
 ::=============================================================
 echo [3/10] Menutup file Excel target: %target%.xlsb ...
 
-for /f "usebackq tokens=*" %%A in (`powershell -NoProfile -Command ^
-    "$p = Get-Process Excel -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -match '%target%.xlsb' }; if ($p) { $p.Id }"`) do (
-    set "pid=%%A"
+set "pid="
+for /f "skip=1 tokens=2 delims=," %%a in (
+    'wmic process where "name='EXCEL.EXE' and commandline like '%%%target%%%' " get ProcessId /format:csv'
+) do (
+    if not "%%a"=="" set "pid=%%a"
 )
 
 if defined pid (
@@ -82,8 +84,6 @@ if defined pid (
     echo File Excel target berhasil ditutup.
 ) else (
     echo Tidak ada Excel yang membuka %target%.xlsb
-	pause
-	exit /b
 )
 timeout /t 2 >nul
 
