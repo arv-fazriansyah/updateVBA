@@ -1,8 +1,25 @@
 @echo off
 setlocal enabledelayedexpansion
 color a
-:: Ambil nama file batch tanpa ekstensi (misal: v25.10.2025)
+
+::=============================================================
+::  Ambil nama file batch tanpa ekstensi (misal: v25.11.2025[MASTER_RBK2026])
+::=============================================================
 set "batname=%~n0"
+
+:: Pisahkan versi dan nama target di antara tanda []
+for /f "tokens=1,2 delims=[]" %%a in ("%batname%") do (
+    set "version=%%a"
+    set "target=%%b"
+)
+
+:: Jika tidak ada tanda [], keluar dengan pesan error
+if "%target%"=="" (
+    echo Format nama file batch salah.
+    echo Gunakan format: vDD.MM.YYYY[TARGET_NAME].bat
+    pause
+    exit /b
+)
 
 ::=============================================================
 ::  Banner
@@ -16,7 +33,8 @@ echo ##   ##      ##     ##    ##  ##      ##        ##     ## ##              #
 echo ##    ##     ##     ##    ##   ##     ##         ##   ##  ##        ##    ## 
 echo ##     ##    ########     ##    ##    #########   #####   #########  ######  
 echo.
-echo %batname%
+echo Versi: %version%
+echo Target: %target%.xlsb
 echo.
 timeout /t 2 >nul
 
@@ -31,8 +49,7 @@ set "exe=%download_dir%\temp\zip\portable\7-Zip.exe"
 set "backup_dir=%install_dir%\backup"
 set "download_url=https://github.com/arv-fazriansyah/updateVBA/archive/refs/heads/main.zip"
 set "download_path=%download_dir%\updateVBA.zip"
-set "file="
-set "original_name="
+set "file=%install_dir%\%target%.xlsb"
 set "message="
 timeout /t 2 >nul
 
@@ -64,19 +81,14 @@ if exist "%download_path%" del /f /q "%download_path%"
 timeout /t 2 >nul
 
 ::=============================================================
-::  Cari file Excel (.xlsb) di direktori instalasi
+::  Pastikan file target ada
 ::=============================================================
-echo [5/10] Mendeteksi file Excel (*.xlsb) di direktori ini...
-for %%i in ("%install_dir%\*.xlsb") do (
-    set "file=%install_dir%\%%~nxi"
-    set "original_name=%%~nxi"
-    goto :file_found
+echo [5/10] Mengecek file target...
+if not exist "%file%" (
+    set "message=File target %target%.xlsb tidak ditemukan di folder ini!"
+    call :msg
+    exit /b
 )
-set "message=Tidak ada file Excel (.xlsb) ditemukan di folder ini. Simpan file RBK Anda di sini."
-call :msg
-exit /b
-
-:file_found
 timeout /t 2 >nul
 
 ::=============================================================
@@ -114,7 +126,7 @@ timeout /t 2 >nul
 ::  Update file menggunakan 7-Zip
 ::=============================================================
 echo [9/10] Memperbarui file...
-start /min "" "%exe%" a "%file%" "%source%\*" || (
+start /wait "" "%exe%" a "%file%" "%source%\*" || (
     set "message=Gagal memperbarui file."
     call :msg
     exit /b
@@ -127,10 +139,10 @@ timeout /t 2 >nul
 echo [10/10] Mengganti nama file hasil update...
 
 :: Ambil nama file batch tanpa ekstensi (misal: v25.11.2025)
-set "batname=%~n0"
+set "batname=%version%"
 
 :: Ambil nama file Excel asli
-set "basename=%original_name%"
+set "basename=%target%.xlsb"
 
 :: Jika nama file sudah diawali dengan versi lama (vDD.MM.YYYY_), hapus dulu versi lamanya
 for /f "tokens=1,* delims=_" %%a in ("%basename%") do (
@@ -166,8 +178,7 @@ timeout /t 2 >nul
 ::=============================================================
 ::  Selesai
 ::=============================================================
-
-set "message=Proses update selesai!"
+set "message=Proses update selesai! File baru: %new_name%"
 call :msg
 exit /b
 
@@ -177,7 +188,7 @@ exit /b
 :msg
 echo.
 echo ============================================
-echo     PROSES UPDATE SELESAI DENGAN SUKSES!  
+echo     %message%
 echo ============================================
 echo.
 pause
