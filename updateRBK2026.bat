@@ -69,22 +69,8 @@ timeout /t 2 >nul
 ::=============================================================
 ::  Tutup file Excel target saja
 ::=============================================================
-echo [3/10] Menutup file Excel target: %target%.xlsb ...
-
-set "pid="
-for /f "skip=1 tokens=2 delims=," %%a in (
-    'wmic process where "name='EXCEL.EXE' and commandline like '%%%target%%%' " get ProcessId /format:csv'
-) do (
-    if not "%%a"=="" set "pid=%%a"
-)
-
-if defined pid (
-    echo Ditemukan PID: %pid%
-    taskkill /f /pid %pid% >nul 2>nul
-    echo File Excel target berhasil ditutup.
-) else (
-    echo Tidak ada Excel yang membuka %target%.xlsb
-)
+echo [3/10] Menutup semua instance Excel...
+taskkill /f /im excel.exe >nul 2>nul
 timeout /t 2 >nul
 
 ::=============================================================
