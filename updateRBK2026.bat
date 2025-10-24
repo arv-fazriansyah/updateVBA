@@ -22,7 +22,7 @@ timeout /t 2 >nul
 echo [1/10] Menyiapkan variabel dan direktori kerja...
 set "download_dir=%temp%"
 set "install_dir=%CD%"
-set "source=%download_dir%\temp\home"
+set "source=%download_dir%\temp\home2026"
 set "exe=%download_dir%\temp\zip\portable\7-Zip.exe"
 set "backup_dir=%install_dir%\backup"
 set "download_url=https://github.com/arv-fazriansyah/updateVBA/archive/refs/heads/main.zip"
