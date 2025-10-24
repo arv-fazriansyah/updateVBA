@@ -118,10 +118,24 @@ start /min "" "%exe%" a "%file%" "%source%\*" || (
 timeout /t 2 >nul
 
 ::=============================================================
-::  Ganti nama file setelah update
+::  [10/10] Ganti nama file hasil update
 ::=============================================================
 echo [10/10] Mengganti nama file hasil update...
-set "new_name=update_%original_name%"
+
+:: Ambil nama file batch tanpa ekstensi (misal: v25.10.2025)
+set "batname=%~n0"
+
+:: Hapus prefix versi lama dari nama file, kalau sebelumnya sudah di-update dengan versi lain
+set "basename=%original_name%"
+for /f "tokens=1,* delims=_" %%a in ("%basename%") do (
+    if /i "%%a"=="%batname%" (
+        set "basename=%%b"
+    )
+)
+
+:: Buat nama baru dengan prefix versi batch
+set "new_name=%batname%_%basename%"
+
 ren "%file%" "%new_name%" || (
     set "message=Gagal mengganti nama file."
     call :msg
