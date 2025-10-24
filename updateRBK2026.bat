@@ -126,15 +126,28 @@ timeout /t 2 >nul
 ::=============================================================
 echo [10/10] Mengganti nama file hasil update...
 
-:: Hapus prefix versi lama dari nama file, kalau sebelumnya sudah di-update dengan versi lain
+:: Ambil nama file batch tanpa ekstensi (misal: v25.11.2025)
+set "batname=%~n0"
+
+:: Ambil nama file Excel asli
 set "basename=%original_name%"
+
+:: Jika nama file sudah diawali dengan versi lama (vDD.MM.YYYY_), hapus dulu versi lamanya
 for /f "tokens=1,* delims=_" %%a in ("%basename%") do (
     if /i "%%a"=="%batname%" (
         set "basename=%%b"
+        goto :version_done
+    )
+    rem Jika diawali dengan pola versi lama vDD.MM.YYYY (cek pola awal v dan titik)
+    echo %%a | findstr /r /c:"^v[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9][0-9][0-9]*" >nul
+    if not errorlevel 1 (
+        set "basename=%%b"
+        goto :version_done
     )
 )
+:version_done
 
-:: Buat nama baru dengan prefix versi batch
+:: Buat nama baru dengan prefix versi batch (selalu satu kali)
 set "new_name=%batname%_%basename%"
 
 ren "%file%" "%new_name%" || (
