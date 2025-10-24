@@ -1,11 +1,13 @@
 @echo off
 setlocal enabledelayedexpansion
 color a
-echo.
+:: Ambil nama file batch tanpa ekstensi (misal: v25.10.2025)
+set "batname=%~n0"
 
 ::=============================================================
 ::  Banner
 ::=============================================================
+echo.
 echo ########     ########     ##    ##     #######    #####    #######  ######## 
 echo ##     ##    ##     ##    ##   ##     ##     ##  ##   ##  ##     ## ##       
 echo ##     ##    ##     ##    ##  ##             ## ##     ##        ## ##       
@@ -13,6 +15,8 @@ echo ########     ########     #####        #######  ##     ##  #######  #######
 echo ##   ##      ##     ##    ##  ##      ##        ##     ## ##              ## 
 echo ##    ##     ##     ##    ##   ##     ##         ##   ##  ##        ##    ## 
 echo ##     ##    ########     ##    ##    #########   #####   #########  ######  
+echo.
+echo %batname%
 echo.
 timeout /t 2 >nul
 
@@ -121,9 +125,6 @@ timeout /t 2 >nul
 ::  [10/10] Ganti nama file hasil update
 ::=============================================================
 echo [10/10] Mengganti nama file hasil update...
-
-:: Ambil nama file batch tanpa ekstensi (misal: v25.10.2025)
-set "batname=%~n0"
 
 :: Hapus prefix versi lama dari nama file, kalau sebelumnya sudah di-update dengan versi lain
 set "basename=%original_name%"
