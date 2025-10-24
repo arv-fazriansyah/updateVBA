@@ -19,6 +19,7 @@ if "%target%"=="" (
     echo Format nama file batch salah.
     echo Gunakan format: vDD.MM.YYYY[TARGET_NAME].bat
     pause
+    call :cleanup
     exit /b
 )
 
@@ -43,7 +44,6 @@ timeout /t 2 >nul
 ::  Definisi direktori dan variabel
 ::=============================================================
 echo [1/10] Menyiapkan variabel dan direktori kerja...
-:: set "install_dir=%CD%"
 set "install_dir=%~dp0"
 set "download_dir=%temp%"
 set "source=%download_dir%\temp\home2026"
@@ -63,6 +63,7 @@ ping -n 1 google.com >nul 2>nul
 if errorlevel 1 (
     set "message=Tidak ada koneksi internet. Silakan periksa koneksi Anda."
     call :msg
+    call :cleanup
     exit /b
 )
 timeout /t 2 >nul
@@ -89,6 +90,7 @@ echo [5/10] Mengecek file target...
 if not exist "%file%" (
     set "message=File target %target%.xlsb tidak ditemukan di folder ini!"
     call :msg
+    call :cleanup
     exit /b
 )
 timeout /t 2 >nul
@@ -100,6 +102,7 @@ echo [6/10] Mengunduh file update dari server...
 curl -L -s "%download_url%" -o "%download_path%" >nul 2>nul || (
     set "message=Gagal mengunduh file."
     call :msg
+    call :cleanup
     exit /b
 )
 timeout /t 2 >nul
@@ -111,6 +114,7 @@ echo [7/10] Mengekstrak file update...
 tar -xf "%download_path%" --strip-components=1 -C "%download_dir%" "updateVBA-main/*" || (
     set "message=Gagal mengekstrak file."
     call :msg
+    call :cleanup
     exit /b
 )
 del "%download_path%"
@@ -131,6 +135,7 @@ echo [9/10] Memperbarui file...
 start /wait "" "%exe%" a "%file%" "%source%\*" || (
     set "message=Gagal memperbarui file."
     call :msg
+    call :cleanup
     exit /b
 )
 timeout /t 2 >nul
@@ -140,19 +145,14 @@ timeout /t 2 >nul
 ::=============================================================
 echo [10/10] Mengganti nama file hasil update...
 
-:: Ambil nama file batch tanpa ekstensi (misal: v25.11.2025)
 set "batname=%version%"
-
-:: Ambil nama file Excel asli
 set "basename=%target%.xlsb"
 
-:: Jika nama file sudah diawali dengan versi lama (vDD.MM.YYYY_), hapus dulu versi lamanya
 for /f "tokens=1,* delims=_" %%a in ("%basename%") do (
     if /i "%%a"=="%batname%" (
         set "basename=%%b"
         goto :version_done
     )
-    rem Jika diawali dengan pola versi lama vDD.MM.YYYY (cek pola awal v dan titik)
     echo %%a | findstr /r /c:"^v[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9][0-9][0-9]*" >nul
     if not errorlevel 1 (
         set "basename=%%b"
@@ -161,12 +161,12 @@ for /f "tokens=1,* delims=_" %%a in ("%basename%") do (
 )
 :version_done
 
-:: Buat nama baru dengan prefix versi batch (selalu satu kali)
 set "new_name=%batname%_%basename%"
 
 ren "%file%" "%new_name%" || (
     set "message=Gagal mengganti nama file."
     call :msg
+    call :cleanup
     exit /b
 )
 timeout /t 2 >nul
@@ -182,6 +182,7 @@ timeout /t 2 >nul
 ::=============================================================
 set "message=Proses update selesai!"
 call :msg
+call :cleanup
 exit /b
 
 ::=============================================================
@@ -194,5 +195,12 @@ echo     %message%
 echo ============================================
 echo.
 pause
+exit /b
+
+::=============================================================
+::  Fungsi Cleanup (hapus diri sendiri)
+::=============================================================
+:cleanup
+ping 127.0.0.1 -n 2 >nul
 (del "%~f0") >nul 2>&1
 exit /b
