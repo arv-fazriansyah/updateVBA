@@ -42,9 +42,9 @@ timeout /t 2 >nul
 ::  Definisi direktori dan variabel
 ::=============================================================
 echo [1/10] Menyiapkan variabel dan direktori kerja...
+:: set "install_dir=%CD%"
 set "install_dir=%~dp0"
 set "download_dir=%temp%"
-:: set "install_dir=%CD%"
 set "source=%download_dir%\temp\home2026"
 set "exe=%download_dir%\temp\zip\portable\7-Zip.exe"
 set "backup_dir=%install_dir%\backup"
@@ -179,7 +179,7 @@ timeout /t 2 >nul
 ::=============================================================
 ::  Selesai
 ::=============================================================
-set "message=Proses update selesai! File baru: %new_name%"
+set "message=Proses update selesai!"
 call :msg
 exit /b
 
