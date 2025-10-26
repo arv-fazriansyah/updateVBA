@@ -191,7 +191,7 @@ exit /b
 :msg
 echo.
 echo ============================================
-echo     %message%
+echo            %message%
 echo ============================================
 echo.
 pause
