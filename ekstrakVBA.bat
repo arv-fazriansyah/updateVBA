@@ -9,7 +9,7 @@ set OUT=EktraksVBA
 if not exist "%OUT%" mkdir "%OUT%"
 
 :: Ekstrak vbaproject.bin
-"%ZIP%" e "%FILE%" xl\vbaproject.bin -o"%OUT%" -y
+"%ZIP%" x "%FILE%" xl\vbaproject.bin -o"%OUT%" -y
 
 :: Ekstrak folder customUI BESERTA foldernya
 "%ZIP%" x "%FILE%" customUI -o"%OUT%" -y
