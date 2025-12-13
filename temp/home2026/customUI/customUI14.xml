@@ -53,6 +53,30 @@
                       label="Daftar Hadir Penggunaan Dana" 
                       imageMso="AccountMenu" 
                       onAction="BAPenggunaanDana" />
+                  <menu id="DownloadTemplate" label="Download Template" imageMso="FillDown">
+                  <button id="DownTemplate1" 
+                          getVisible="GetVisible"   
+                          label="Template RKJM" 
+                          imageMso="FillDown" 
+                          onAction="TempRKJM" />
+                  <button id="DownTemplate2" 
+                          getVisible="GetVisible"   
+                          label="Template AD/ART" 
+                          imageMso="FillDown" 
+                          onAction="TempADART" />
+                  </menu>
+                  <menu id="UploadTemplate" label="Upload Template" imageMso="FileOpen">
+                  <button id="UpTemplate1" 
+                          getVisible="GetVisible"   
+                          label="Upload Template RKJM" 
+                          imageMso="FileOpen" 
+                          onAction="UpTempRKJM" />
+                  <button id="UpTemplate2" 
+                          getVisible="GetVisible"     
+                          label="Upload Template AD/ART" 
+                          imageMso="FileOpen" 
+                          onAction="UpTempADART" />
+                  </menu>
           </menu>
         </group>
          <group id="customGroup3" getVisible="GetVisible" >
@@ -170,11 +194,20 @@
                       onAction="RekonSaldo" />
           </menu>
         </group>
+            
+         <group id="customGroupGrafik" getVisible="GetVisible">
+              <button id="Grafik" 
+                      getVisible="GetVisible"  
+                      label="Grafik Kepatuhan"
+                      size="large"  
+                      image="grafik" 
+                      onAction="btnGrafik" />
+         </group>
  
         <group id="customGroup8" getVisible="GetVisible">
               <button id="Update" 
                       getVisible="GetVisible"  
-                      label="Update"
+                      label="Update Sinkron"
                       size="large"  
                       image="update" 
                       onAction="Update" />
