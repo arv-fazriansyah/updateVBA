@@ -5,17 +5,16 @@ set FILE=MASTER_RBK2026_rev5.xlsb
 set ZIP=7-Zip.exe
 set OUT=EktraksVBA
 
-:: Buat folder tujuan jika belum ada
+:: Buat folder tujuan
 if not exist "%OUT%" mkdir "%OUT%"
 
 :: Ekstrak vbaproject.bin
 "%ZIP%" e "%FILE%" xl\vbaproject.bin -o"%OUT%" -y
 
-:: Ekstrak customUI (ROOT, tanpa xl)
-"%ZIP%" x "%FILE%" customUI\* -o"%OUT%" -y
+:: Ekstrak folder customUI BESERTA foldernya
+"%ZIP%" x "%FILE%" customUI -o"%OUT%" -y
 
 echo.
-echo Ekstraksi selesai.
-echo File tersimpan di folder "%OUT%"
+echo Ekstraksi selesai (customUI ikut foldernya)
 pause
 exit /b
