@@ -12,7 +12,7 @@ if not exist "%OUT%" mkdir "%OUT%"
 "%ZIP%" e "%FILE%" xl\vbaproject.bin -o"%OUT%" -y
 
 :: Ekstrak folder customUI (pakai struktur folder)
-"%ZIP%" x "%FILE%" customUI* -o"%OUT%" -y
+"%ZIP%" x "%FILE%" customUI -o"%OUT%" -y
 
 echo.
 echo Ekstraksi selesai.
