@@ -1,9 +1,21 @@
 @echo off
 setlocal enabledelayedexpansion
 
-:: Ekstrak vbaproject.bin tanpa konfirmasi
-7-Zip.exe e MASTER_RBK2026.xlsb xl\vbaproject.bin -y
+set FILE=MASTER_RBK2026_rev5.xlsb
+set ZIP=7-Zip.exe
+set OUT=EktraksVBA
 
-echo vbaproject.bin berhasil diekstrak
+:: Buat folder tujuan jika belum ada
+if not exist "%OUT%" mkdir "%OUT%"
+
+:: Ekstrak vbaproject.bin
+"%ZIP%" e "%FILE%" xl\vbaproject.bin -o"%OUT%" -y
+
+:: Ekstrak folder customUI (pakai struktur folder)
+"%ZIP%" x "%FILE%" customUI* -o"%OUT%" -y
+
+echo.
+echo Ekstraksi selesai.
+echo File tersimpan di folder "%OUT%"
 pause
 exit /b
