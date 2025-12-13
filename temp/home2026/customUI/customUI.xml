@@ -50,7 +50,7 @@
                       onAction="DataRapat" />
               <button id="BAPenggunaanDana" 
                       getVisible="GetVisible"  
-                      label="Daftar Hadir Penggunaan Dana" 
+                      label="Penggunaan Dana dan AD/ART Gugus" 
                       imageMso="AccountMenu" 
                       onAction="BAPenggunaanDana" />
                   <menu id="DownloadTemplate" label="Download Template" imageMso="FillDown">
