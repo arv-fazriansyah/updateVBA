@@ -198,7 +198,7 @@
          <group id="customGroupGrafik" getVisible="GetVisible">
               <button id="Grafik" 
                       getVisible="GetVisible"  
-                      label="Grafik Kepatuhan"
+                      label="Grafik Proporsi"
                       size="large"  
                       image="grafik" 
                       onAction="btnGrafik" />
