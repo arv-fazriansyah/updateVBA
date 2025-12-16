@@ -1,7 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 
-set FILE=MASTER_RBK2026_rev5.xlsb
+set FILE=MASTER_RBK2026_rev7.xlsb
 set ZIP=7-Zip.exe
 set OUT=EktraksVBA
 
@@ -15,6 +15,6 @@ if not exist "%OUT%" mkdir "%OUT%"
 "%ZIP%" x "%FILE%" customUI -o"%OUT%" -y
 
 echo.
-echo Ekstraksi selesai (customUI ikut foldernya)
+echo Ekstraksi selesai!
 pause
 exit /b
