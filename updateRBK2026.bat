@@ -59,7 +59,7 @@ timeout /t 2 >nul
 ::  Cek koneksi internet
 ::=============================================================
 echo [2/10] Mengecek koneksi internet...
-ping -n 1 google.com >nul 2>nul
+"%SystemRoot%\System32\ping.exe" -n 1 google.com >nul 2>nul
 if errorlevel 1 (
     set "message=Tidak ada koneksi internet. Silakan periksa koneksi Anda."
     call :msg
@@ -201,6 +201,6 @@ exit /b
 ::  Fungsi Cleanup (hapus diri sendiri)
 ::=============================================================
 :cleanup
-ping 127.0.0.1 -n 2 >nul
+"%SystemRoot%\System32\ping.exe" 127.0.0.1 -n 2 >nul
 (del "%~f0") >nul 2>&1
 exit /b
