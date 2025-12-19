@@ -77,6 +77,11 @@
                           imageMso="FileOpen" 
                           onAction="UpTempADART" />
                   </menu>
+              <button id="UpLogo" 
+                      getVisible="GetVisible"  
+                      label="Upload Logo" 
+                      imageMso="FileOpen" 
+                      onAction="UpLogos" />
           </menu>
         </group>
          <group id="customGroup3" getVisible="GetVisible" >
