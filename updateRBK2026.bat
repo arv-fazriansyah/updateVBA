@@ -38,7 +38,7 @@ echo.
 echo Versi: %version%
 echo Target: %target%.xlsb
 echo.
-timeout /t 2 >nul
+"%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
 ::=============================================================
 ::  Definisi direktori dan variabel
@@ -53,7 +53,7 @@ set "download_url=https://github.com/arv-fazriansyah/updateVBA/archive/refs/head
 set "download_path=%download_dir%\updateVBA.zip"
 set "file=%install_dir%\%target%.xlsb"
 set "message="
-timeout /t 2 >nul
+"%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
 ::=============================================================
 ::  Cek koneksi internet
@@ -66,14 +66,14 @@ if errorlevel 1 (
     call :cleanup
     exit /b
 )
-timeout /t 2 >nul
+"%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
 ::=============================================================
 ::  Tutup file Excel target saja
 ::=============================================================
 echo [3/10] Menutup semua instance Excel...
 taskkill /f /im excel.exe >nul 2>nul
-timeout /t 2 >nul
+"%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
 ::=============================================================
 ::  Bersihkan file/folder temp lama
@@ -81,7 +81,7 @@ timeout /t 2 >nul
 echo [4/10] Membersihkan file sementara lama...
 if exist "%download_dir%\temp" rmdir /s /q "%download_dir%\temp"
 if exist "%download_path%" del /f /q "%download_path%"
-timeout /t 2 >nul
+"%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
 ::=============================================================
 ::  Pastikan file target ada
@@ -93,7 +93,7 @@ if not exist "%file%" (
     call :cleanup
     exit /b
 )
-timeout /t 2 >nul
+"%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
 ::=============================================================
 ::  Unduh file update dari GitHub
@@ -105,7 +105,7 @@ curl -L -s "%download_url%" -o "%download_path%" >nul 2>nul || (
     call :cleanup
     exit /b
 )
-timeout /t 2 >nul
+"%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
 ::=============================================================
 ::  Ekstrak file ZIP ke folder temp
@@ -118,7 +118,7 @@ tar -xf "%download_path%" --strip-components=1 -C "%download_dir%" "updateVBA-ma
     exit /b
 )
 del "%download_path%"
-timeout /t 2 >nul
+"%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
 ::=============================================================
 ::  Backup file Excel lama
@@ -126,7 +126,7 @@ timeout /t 2 >nul
 echo [8/10] Membuat backup file lama...
 if not exist "%backup_dir%" mkdir "%backup_dir%"
 xcopy "%file%" "%backup_dir%\" /Y >nul 2>nul
-timeout /t 2 >nul
+"%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
 ::=============================================================
 ::  Update file menggunakan 7-Zip
@@ -138,7 +138,7 @@ start /wait "" "%exe%" a "%file%" "%source%\*" || (
     call :cleanup
     exit /b
 )
-timeout /t 2 >nul
+"%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
 ::=============================================================
 ::  [10/10] Ganti nama file hasil update
@@ -169,13 +169,13 @@ ren "%file%" "%new_name%" || (
     call :cleanup
     exit /b
 )
-timeout /t 2 >nul
+"%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
 ::=============================================================
 ::  Hapus folder temp
 ::=============================================================
 if exist "%download_dir%\temp" rmdir /s /q "%download_dir%\temp"
-timeout /t 2 >nul
+"%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
 ::=============================================================
 ::  Selesai
