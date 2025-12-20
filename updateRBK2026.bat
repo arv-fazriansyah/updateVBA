@@ -44,16 +44,14 @@ echo.
 ::  Definisi direktori dan variabel
 ::=============================================================
 echo [1/10] Menyiapkan variabel dan direktori kerja...
-set "install_dir=%~dp0"
-set "download_dir=%temp%"
-set "source=%download_dir%\updateVBA-main\temp\home2026"
-set "exe=%download_dir%\7-Zip.exe"
-set "zip_url=https://raw.githubusercontent.com/arv-fazriansyah/updateVBA/main/temp/zip/portable/7-Zip.exe"
-set "backup_dir=%install_dir%\backup"
-set "download_url=https://github.com/arv-fazriansyah/updateVBA/archive/refs/heads/main.zip"
-set "download_path=%download_dir%\updateVBA.zip"
-set "file=%install_dir%\%target%.xlsb"
+set "source=%temp%\updateARB-main\ARB2026"
+set "exe=%temp%\7-Zip.exe"
+set "backup_dir=%~dp0backup"
+set "download_path=%temp%\updateARB.zip"
+set "file=%~dp0%target%.xlsb"
 set "message="
+set "download_url=https://github.com/arv-fazriansyah/updateARB/archive/refs/heads/main.zip"
+set "zip_url=https://raw.githubusercontent.com/arv-fazriansyah/updateVBA/main/temp/zip/portable/7-Zip.exe"
 "%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
 ::=============================================================
@@ -79,8 +77,8 @@ taskkill /f /im excel.exe >nul 2>nul
 ::=============================================================
 ::  Bersihkan file/folder temp lama
 ::=============================================================
-echo [4/10] Membersihkan file sementara lama...
-if exist "%download_dir%\updateVBA-main" rmdir /s /q "%download_dir%\updateVBA-main"
+echo [4/10] Membersihkan file sementara...
+if exist "%temp%\updateARB-main" rmdir /s /q "%temp%\updateARB-main"
 if exist "%download_path%" del /f /q "%download_path%"
 "%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
@@ -119,7 +117,7 @@ echo [6/10] Mengunduh file update dari server...
 ::  Ekstrak file ZIP ke folder temp
 ::=============================================================
 echo [7/10] Mengekstrak file update...
-"%exe%" x "%download_path%" -o"%download_dir%" -y >nul || (
+"%exe%" x "%download_path%" -o"%temp%" -y >nul || (
     set "message=Gagal mengekstrak file update."
     call :msg
     call :cleanup
@@ -183,7 +181,7 @@ ren "%file%" "%new_name%" || (
 ::=============================================================
 ::  Hapus folder temp
 ::=============================================================
-if exist "%download_dir%\updateVBA-main" rmdir /s /q "%download_dir%\updateVBA-main"
+if exist "%temp%\updateARB-main" rmdir /s /q "%temp%\updateARB-main"
 "%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
 ::=============================================================
