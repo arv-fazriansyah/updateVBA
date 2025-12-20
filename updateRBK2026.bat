@@ -99,7 +99,7 @@ if not exist "%file%" (
 ::  Unduh file update dari GitHub
 ::=============================================================
 echo [6/10] Mengunduh file update dari server...
-curl -L -s "%download_url%" -o "%download_path%" >nul 2>nul || (
+"%SystemRoot%\System32\curl.exe" -L -s "%download_url%" -o "%download_path%" >nul 2>nul || (
     set "message=Gagal mengunduh file."
     call :msg
     call :cleanup
