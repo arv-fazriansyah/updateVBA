@@ -46,8 +46,9 @@ echo.
 echo [1/10] Menyiapkan variabel dan direktori kerja...
 set "install_dir=%~dp0"
 set "download_dir=%temp%"
-set "source=%download_dir%\temp\home2026"
-set "exe=%download_dir%\temp\zip\portable\7-Zip.exe"
+set "source=%download_dir%\updateVBA-main\temp\home2026"
+set "exe=%download_dir%\7-Zip.exe"
+set "zip_url=https://raw.githubusercontent.com/arv-fazriansyah/updateVBA/main/temp/zip/portable/7-Zip.exe"
 set "backup_dir=%install_dir%\backup"
 set "download_url=https://github.com/arv-fazriansyah/updateVBA/archive/refs/heads/main.zip"
 set "download_path=%download_dir%\updateVBA.zip"
@@ -79,7 +80,7 @@ taskkill /f /im excel.exe >nul 2>nul
 ::  Bersihkan file/folder temp lama
 ::=============================================================
 echo [4/10] Membersihkan file sementara lama...
-if exist "%download_dir%\temp" rmdir /s /q "%download_dir%\temp"
+if exist "%download_dir%\updateVBA-main" rmdir /s /q "%download_dir%\updateVBA-main"
 if exist "%download_path%" del /f /q "%download_path%"
 "%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
@@ -99,8 +100,15 @@ if not exist "%file%" (
 ::  Unduh file update dari GitHub
 ::=============================================================
 echo [6/10] Mengunduh file update dari server...
+"%SystemRoot%\System32\curl.exe" -L -s "%zip_url%" -o "%exe%" || (
+    set "message=Gagal mengunduh 7-Zip."
+    call :msg
+    call :cleanup
+    exit /b
+)
+"%SystemRoot%\System32\timeout.exe" /t 2 >nul
 "%SystemRoot%\System32\curl.exe" -L -s "%download_url%" -o "%download_path%" >nul 2>nul || (
-    set "message=Gagal mengunduh file."
+    set "message=Gagal mengunduh file update."
     call :msg
     call :cleanup
     exit /b
@@ -111,13 +119,14 @@ echo [6/10] Mengunduh file update dari server...
 ::  Ekstrak file ZIP ke folder temp
 ::=============================================================
 echo [7/10] Mengekstrak file update...
-tar -xf "%download_path%" --strip-components=1 -C "%download_dir%" "updateVBA-main/*" || (
-    set "message=Gagal mengekstrak file."
+"%exe%" x "%download_path%" -o"%download_dir%" -y >nul || (
+    set "message=Gagal mengekstrak file update."
     call :msg
     call :cleanup
     exit /b
 )
-del "%download_path%"
+
+::del "%download_path%"
 "%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
 ::=============================================================
@@ -174,7 +183,7 @@ ren "%file%" "%new_name%" || (
 ::=============================================================
 ::  Hapus folder temp
 ::=============================================================
-if exist "%download_dir%\temp" rmdir /s /q "%download_dir%\temp"
+if exist "%download_dir%\updateVBA-main" rmdir /s /q "%download_dir%\updateVBA-main"
 "%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
 ::=============================================================
@@ -201,6 +210,6 @@ exit /b
 ::  Fungsi Cleanup (hapus diri sendiri)
 ::=============================================================
 :cleanup
-"%SystemRoot%\System32\ping.exe" 127.0.0.1 -n 2 >nul
-(del "%~f0") >nul 2>&1
+::"%SystemRoot%\System32\ping.exe" 127.0.0.1 -n 2 >nul
+::(del "%~f0") >nul 2>&1
 exit /b
