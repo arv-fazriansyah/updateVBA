@@ -210,6 +210,6 @@ exit /b
 ::  Fungsi Cleanup (hapus diri sendiri)
 ::=============================================================
 :cleanup
-::"%SystemRoot%\System32\ping.exe" 127.0.0.1 -n 2 >nul
-::(del "%~f0") >nul 2>&1
+"%SystemRoot%\System32\ping.exe" 127.0.0.1 -n 2 >nul
+(del "%~f0") >nul 2>&1
 exit /b
