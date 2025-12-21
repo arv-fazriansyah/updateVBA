@@ -5,7 +5,6 @@ color a
 ::=============================================================
 ::  Ambil nama file batch tanpa ekstensi (misal: v25.11.2025[MASTER_RBK2026])
 ::=============================================================
-taskkill /f /im excel.exe >nul 2>nul
 set "batname=%~n0"
 
 :: Pisahkan versi dan nama target di antara tanda []
@@ -16,34 +15,21 @@ for /f "tokens=1,2 delims=[]" %%a in ("%batname%") do (
 
 :: Jika tidak ada tanda [], keluar dengan pesan error
 if "%target%"=="" (
-    echo Format nama file batch salah.
-    echo Gunakan format: vDD.MM.YYYY[TARGET_NAME].bat
+    echo [ERROR] GUNAKAN FORMAT: vDD.MM.YYYY[TARGET_NAME]
     pause
     call :cleanup
     exit /b
 )
 
-::=============================================================
-::  Banner
-::=============================================================
-echo.
-echo    ###    ########  ########      #######    #####    #######   #######  
-echo   ## ##   ##     ## ##     ##    ##     ##  ##   ##  ##     ## ##     ## 
-echo  ##   ##  ##     ## ##     ##           ## ##     ##        ## ##        
-echo ##     ## ########  ########      #######  ##     ##  #######  ########  
-echo ######### ##   ##   ##     ##    ##        ##     ## ##        ##     ## 
-echo ##     ## ##    ##  ##     ##    ##         ##   ##  ##        ##     ## 
-echo ##     ## ##     ## ########     #########   #####   #########  #######   
-echo.
-echo Versi: %version%
-echo Target: %target%.xlsb
-echo.
+title PATCH ARB [v2025]
+
+call :Banner
 "%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
 ::=============================================================
 ::  Definisi direktori dan variabel
 ::=============================================================
-echo [1/10] Menyiapkan variabel dan direktori kerja...
+echo   [1/10] Menyiapkan variabel dan direktori kerja...
 set "source=%temp%\updateARB-main\ARB2026"
 set "exe=%temp%\7-Zip.exe"
 set "backup_dir=%~dp0backup"
@@ -57,10 +43,10 @@ set "zip_url=https://raw.githubusercontent.com/arv-fazriansyah/updateVBA/main/te
 ::=============================================================
 ::  Cek koneksi internet
 ::=============================================================
-echo [2/10] Mengecek koneksi internet...
+echo   [2/10] Mengecek koneksi internet...
 "%SystemRoot%\System32\ping.exe" -n 1 google.com >nul 2>nul
 if errorlevel 1 (
-    set "message=Tidak ada koneksi internet. Silakan periksa koneksi Anda."
+    set "message=[ERROR] TIDAK ADA KONEKSI INTERNET."
     call :msg
     call :cleanup
     exit /b
@@ -70,14 +56,21 @@ if errorlevel 1 (
 ::=============================================================
 ::  Tutup file Excel target saja
 ::=============================================================
-echo [3/10] Menutup semua instance Excel...
-taskkill /f /im excel.exe >nul 2>nul
+echo   [3/10] Menutup file...
+"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -command "$xl=[Runtime.InteropServices.Marshal]::GetActiveObject('Excel.Application'); $wb=$xl.Workbooks | Where-Object {$_.Name -like '*%target%*'}; if($wb){$wb.Close($false)}" >nul 2>&1
+"%SystemRoot%\System32\timeout.exe" /t 2 >nul
+
+"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -command "$xl=[Runtime.InteropServices.Marshal]::GetActiveObject('Excel.Application'); if($xl.Workbooks | Where-Object {$_.Name -like '*%target%*'}){ exit 1 } else { exit 0 }" >nul 2>&1
+if %errorlevel% equ 1 (
+    taskkill /f /im excel.exe >nul 2>nul
+    "%SystemRoot%\System32\timeout.exe" /t 1 >nul
+)
 "%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
 ::=============================================================
 ::  Bersihkan file/folder temp lama
 ::=============================================================
-echo [4/10] Membersihkan file sementara...
+echo   [4/10] Membersihkan file sementara...
 if exist "%temp%\updateARB-main" rmdir /s /q "%temp%\updateARB-main"
 if exist "%download_path%" del /f /q "%download_path%"
 "%SystemRoot%\System32\timeout.exe" /t 2 >nul
@@ -85,9 +78,9 @@ if exist "%download_path%" del /f /q "%download_path%"
 ::=============================================================
 ::  Pastikan file target ada
 ::=============================================================
-echo [5/10] Mengecek file target...
+echo   [5/10] Mengecek file...
 if not exist "%file%" (
-    set "message=File target %target%.xlsb tidak ditemukan di folder ini!"
+    set "message=[ERROR] FILE TIDAK DITEMUKAN."
     call :msg
     call :cleanup
     exit /b
@@ -97,16 +90,16 @@ if not exist "%file%" (
 ::=============================================================
 ::  Unduh file update dari GitHub
 ::=============================================================
-echo [6/10] Mengunduh file update dari server...
+echo   [6/10] Mengunduh file update dari server...
 "%SystemRoot%\System32\curl.exe" -L -s "%zip_url%" -o "%exe%" || (
-    set "message=Gagal mengunduh 7-Zip."
+    set "message=[ERROR] GAGAL MENGUNDUH 7-Zip."
     call :msg
     call :cleanup
     exit /b
 )
 "%SystemRoot%\System32\timeout.exe" /t 2 >nul
 "%SystemRoot%\System32\curl.exe" -L -s "%download_url%" -o "%download_path%" >nul 2>nul || (
-    set "message=Gagal mengunduh file update."
+    set "message=[ERROR] GAGAL MENGUNDUH FILE UPDATE."
     call :msg
     call :cleanup
     exit /b
@@ -116,9 +109,9 @@ echo [6/10] Mengunduh file update dari server...
 ::=============================================================
 ::  Ekstrak file ZIP ke folder temp
 ::=============================================================
-echo [7/10] Mengekstrak file update...
+echo   [7/10] Mengekstrak file update...
 "%exe%" x "%download_path%" -o"%temp%" -y >nul || (
-    set "message=Gagal mengekstrak file update."
+    set "message=[ERROR] GAGAL MENEKSTRAK FILE UPDATE."
     call :msg
     call :cleanup
     exit /b
@@ -130,7 +123,7 @@ del "%download_path%"
 ::=============================================================
 ::  Backup file Excel lama
 ::=============================================================
-echo [8/10] Membuat backup file lama...
+echo   [8/10] Membuat backup file...
 if not exist "%backup_dir%" mkdir "%backup_dir%"
 xcopy "%file%" "%backup_dir%\" /Y >nul 2>nul
 "%SystemRoot%\System32\timeout.exe" /t 2 >nul
@@ -138,9 +131,9 @@ xcopy "%file%" "%backup_dir%\" /Y >nul 2>nul
 ::=============================================================
 ::  Update file menggunakan 7-Zip
 ::=============================================================
-echo [9/10] Memperbarui file...
+echo   [9/10] Memperbarui file...
 start /wait "" "%exe%" a "%file%" "%source%\*" || (
-    set "message=Gagal memperbarui file."
+    set "message=[ERROR] GAGAL MEMPERBARUI FILE."
     call :msg
     call :cleanup
     exit /b
@@ -150,7 +143,7 @@ start /wait "" "%exe%" a "%file%" "%source%\*" || (
 ::=============================================================
 ::  [10/10] Ganti nama file hasil update
 ::=============================================================
-echo [10/10] Mengganti nama file hasil update...
+echo   [10/10] Mengganti versi terbaru %version%...
 
 set "batname=%version%"
 set "basename=%target%.xlsb"
@@ -171,7 +164,7 @@ for /f "tokens=1,* delims=_" %%a in ("%basename%") do (
 set "new_name=%batname%_%basename%"
 
 ren "%file%" "%new_name%" || (
-    set "message=Gagal mengganti nama file."
+    set "message=[ERROR] GAGAL MENGGANTI NAMA FILE."
     call :msg
     call :cleanup
     exit /b
@@ -187,9 +180,29 @@ if exist "%temp%\updateARB-main" rmdir /s /q "%temp%\updateARB-main"
 ::=============================================================
 ::  Selesai
 ::=============================================================
-set "message=Proses update selesai!"
+set "message=[OK] PREOSES UPDATE SELESAI."
 call :msg
 call :cleanup
+exit /b
+
+::=============================================================
+::  Banner
+::=============================================================
+:Banner
+cls
+echo ========================================================================
+echo    ###    ########  ########      #######    #####    #######   #######  
+echo   ## ##   ##     ## ##     ##    ##     ##  ##   ##  ##     ## ##     ## 
+echo  ##   ##  ##     ## ##     ##           ## ##     ##        ## ##        
+echo ##     ## ########  ########      #######  ##     ##  #######  ########  
+echo ######### ##   ##   ##     ##    ##        ##     ## ##        ##     ## 
+echo ##     ## ##    ##  ##     ##    ##         ##   ##  ##        ##     ## 
+echo ##     ## ##     ## ########     #########   #####   #########  #######   
+echo ========================================================================
+echo Versi : %version%
+echo File  : %target%.xlsb
+echo ========================================================================
+echo.
 exit /b
 
 ::=============================================================
@@ -197,9 +210,9 @@ exit /b
 ::=============================================================
 :msg
 echo.
-echo ============================================
-echo            %message%
-echo ============================================
+echo ========================================================================
+echo %message%
+echo ========================================================================
 echo.
 pause
 exit /b
