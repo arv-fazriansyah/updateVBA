@@ -124,7 +124,7 @@ echo [7/10] Mengekstrak file update...
     exit /b
 )
 
-::del "%download_path%"
+del "%download_path%"
 "%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
 ::=============================================================
