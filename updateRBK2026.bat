@@ -29,7 +29,7 @@ call :Banner
 ::=============================================================
 ::  Definisi direktori dan variabel
 ::=============================================================
-echo   [1/10] Menyiapkan variabel dan direktori kerja...
+echo   [1/10] Menyiapkan update manager...
 set "source=%temp%\updateARB-main\ARB2026"
 set "exe=%temp%\7-Zip.exe"
 set "backup_dir=%~dp0backup"
@@ -41,9 +41,17 @@ set "zip_url=https://raw.githubusercontent.com/arv-fazriansyah/updateVBA/main/te
 "%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
 ::=============================================================
+::  Bersihkan file/folder temp lama
+::=============================================================
+echo   [2/10] Membersihkan file sementara...
+if exist "%temp%\updateARB-main" rmdir /s /q "%temp%\updateARB-main"
+if exist "%download_path%" del /f /q "%download_path%"
+"%SystemRoot%\System32\timeout.exe" /t 2 >nul
+
+::=============================================================
 ::  Cek koneksi internet
 ::=============================================================
-echo   [2/10] Mengecek koneksi internet...
+echo   [3/10] Mengecek koneksi internet...
 "%SystemRoot%\System32\ping.exe" -n 1 google.com >nul 2>nul
 if errorlevel 1 (
     set "message=[ERROR] TIDAK ADA KONEKSI INTERNET."
@@ -54,9 +62,21 @@ if errorlevel 1 (
 "%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
 ::=============================================================
+::  Pastikan file target ada
+::=============================================================
+echo   [4/10] Mengecek file ARB...
+if not exist "%file%" (
+    set "message=[ERROR] FILE TIDAK DITEMUKAN."
+    call :msg
+    call :cleanup
+    exit /b
+)
+"%SystemRoot%\System32\timeout.exe" /t 2 >nul
+
+::=============================================================
 ::  Tutup file Excel target saja
 ::=============================================================
-echo   [3/10] Menutup file...
+echo   [5/10] Menutup file ARB...
 "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -command "$xl=[Runtime.InteropServices.Marshal]::GetActiveObject('Excel.Application'); $wb=$xl.Workbooks | Where-Object {$_.Name -like '*%target%*'}; if($wb){$wb.Close($false)}" >nul 2>&1
 "%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
@@ -68,29 +88,17 @@ if %errorlevel% equ 1 (
 "%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
 ::=============================================================
-::  Bersihkan file/folder temp lama
+::  Backup file Excel lama
 ::=============================================================
-echo   [4/10] Membersihkan file sementara...
-if exist "%temp%\updateARB-main" rmdir /s /q "%temp%\updateARB-main"
-if exist "%download_path%" del /f /q "%download_path%"
-"%SystemRoot%\System32\timeout.exe" /t 2 >nul
-
-::=============================================================
-::  Pastikan file target ada
-::=============================================================
-echo   [5/10] Mengecek file...
-if not exist "%file%" (
-    set "message=[ERROR] FILE TIDAK DITEMUKAN."
-    call :msg
-    call :cleanup
-    exit /b
-)
+echo   [6/10] Membuat backup file ARB...
+if not exist "%backup_dir%" mkdir "%backup_dir%"
+xcopy "%file%" "%backup_dir%\" /Y >nul 2>nul
 "%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
 ::=============================================================
 ::  Unduh file update dari GitHub
 ::=============================================================
-echo   [6/10] Mengunduh file update dari server...
+echo   [7/10] Mengunduh file update...
 "%SystemRoot%\System32\curl.exe" -L -s "%zip_url%" -o "%exe%" || (
     set "message=[ERROR] GAGAL MENGUNDUH 7-Zip."
     call :msg
@@ -109,7 +117,7 @@ echo   [6/10] Mengunduh file update dari server...
 ::=============================================================
 ::  Ekstrak file ZIP ke folder temp
 ::=============================================================
-echo   [7/10] Mengekstrak file update...
+echo   [8/10] Mengekstrak file update...
 "%exe%" x "%download_path%" -o"%temp%" -y >nul || (
     set "message=[ERROR] GAGAL MENEKSTRAK FILE UPDATE."
     call :msg
@@ -121,17 +129,9 @@ del "%download_path%"
 "%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
 ::=============================================================
-::  Backup file Excel lama
-::=============================================================
-echo   [8/10] Membuat backup file...
-if not exist "%backup_dir%" mkdir "%backup_dir%"
-xcopy "%file%" "%backup_dir%\" /Y >nul 2>nul
-"%SystemRoot%\System32\timeout.exe" /t 2 >nul
-
-::=============================================================
 ::  Update file menggunakan 7-Zip
 ::=============================================================
-echo   [9/10] Memperbarui file...
+echo   [9/10] Memperbarui file ARB...
 start /wait "" "%exe%" a "%file%" "%source%\*" || (
     set "message=[ERROR] GAGAL MEMPERBARUI FILE."
     call :msg
@@ -144,10 +144,8 @@ start /wait "" "%exe%" a "%file%" "%source%\*" || (
 ::  [10/10] Ganti nama file hasil update
 ::=============================================================
 echo   [10/10] Mengganti versi terbaru %version%...
-
 set "batname=%version%"
 set "basename=%target%.xlsb"
-
 for /f "tokens=1,* delims=_" %%a in ("%basename%") do (
     if /i "%%a"=="%batname%" (
         set "basename=%%b"
@@ -160,9 +158,7 @@ for /f "tokens=1,* delims=_" %%a in ("%basename%") do (
     )
 )
 :version_done
-
 set "new_name=%batname%_%basename%"
-
 ren "%file%" "%new_name%" || (
     set "message=[ERROR] GAGAL MENGGANTI NAMA FILE."
     call :msg
