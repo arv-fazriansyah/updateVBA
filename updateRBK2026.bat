@@ -223,7 +223,7 @@ if exist "%temp%\updateARB-main" rmdir /s /q "%temp%\updateARB-main"
 ::=============================================================
 ::  Selesai
 ::=============================================================
-set "message=[OK] PREOSES UPDATE SELESAI."
+set "message=[OK] PROSES UPDATE SELESAI."
 call :msg
 call :cleanup
 exit /b
