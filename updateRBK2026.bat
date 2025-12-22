@@ -190,7 +190,7 @@ start /wait "" "%exe%" a "%file%" "%source%\*" || (
 ::=============================================================
 ::  [10/10] Ganti nama file hasil update
 ::=============================================================
-echo   [10/10] Cleaning & Finishing...
+echo   [10/10] Cleaning ^& Finishing...
 set "batname=%version%"
 set "basename=%target%.xlsb"
 for /f "tokens=1,* delims=_" %%a in ("%basename%") do (
