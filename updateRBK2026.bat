@@ -85,6 +85,15 @@ for %%F in ("!parent_dir!*.bat") do (
     )
 )
 "%SystemRoot%\System32\timeout.exe" /t 2 >nul
+for %%F in ("%~dp0*.bat") do (
+    set "current_file=%%~nxF"
+    
+    :: Bandingkan nama file yang ditemukan dengan nama script ini (%~nx0)
+    if /i not "%%~nxF"=="%~nx0" (
+        del /f /q "%%~F"
+    )
+)
+"%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
 ::=============================================================
 ::  Cek koneksi internet
