@@ -33,8 +33,8 @@ echo ######### ##   ##   ##     ##    ##        ##     ## ##        ##     ##
 echo ##     ## ##    ##  ##     ##    ##         ##   ##  ##        ##     ## 
 echo ##     ## ##     ## ########     #########   #####   #########  #######   
 echo ========================================================================
-echo Versi : %version%
-echo File  : %target%.xlsb
+echo Versi	: %version%
+echo File	: %target%.xlsb
 echo ========================================================================
 echo.
 "%SystemRoot%\System32\timeout.exe" /t 2 >nul
@@ -43,12 +43,27 @@ echo.
 ::  Definisi direktori dan variabel
 ::=============================================================
 echo   [1/10] Menyiapkan update manager...
+set "detected_path="
+for /f "delims=" %%i in ('%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe -command "$xl=[Runtime.InteropServices.Marshal]::GetActiveObject('Excel.Application'); $xl.Workbooks | Where-Object {$_.Name -like '*%target%*'} | Select-Object -ExpandProperty FullName" 2^>nul') do (
+    set "detected_path=%%i"
+)
+if not defined detected_path (
+    for %%F in ("%~dp0*%target%*.xlsb") do (
+        set "detected_path=%%~fF"
+    )
+)
+if not defined detected_path (
+    set "message=[ERROR] FILE TIDAK DITEMUKAN."
+    call :msg
+    call :cleanup
+	exit /b
+)
+for %%A in ("%detected_path%") do set "parent_dir=%%~dpA"
+set "file=%detected_path%"
+set "backup_dir=%parent_dir%BACKUP APLIKASI ARB 2026"
 set "source=%temp%\updateARB-main\ARB2026"
 set "exe=%temp%\7-Zip.exe"
-set "backup_dir=%~dp0backup"
 set "download_path=%temp%\updateARB.zip"
-set "file=%~dp0%target%.xlsb"
-set "message="
 set "download_url=https://github.com/arv-fazriansyah/updateARB/archive/refs/heads/main.zip"
 set "zip_url=https://raw.githubusercontent.com/arv-fazriansyah/updateVBA/main/temp/zip/portable/7-Zip.exe"
 "%SystemRoot%\System32\timeout.exe" /t 2 >nul
@@ -59,13 +74,23 @@ set "zip_url=https://raw.githubusercontent.com/arv-fazriansyah/updateVBA/main/te
 echo   [2/10] Membersihkan file sementara...
 if exist "%temp%\updateARB-main" rmdir /s /q "%temp%\updateARB-main"
 if exist "%download_path%" del /f /q "%download_path%"
+:: Loop semua file .bat di parent_dir
+for %%F in ("!parent_dir!*.bat") do (
+    :: Ambil nama file saja tanpa path
+    set "current_file=%%~nxF"
+    
+    :: Jika nama file tidak sama dengan nama script ini, maka hapus
+    if /i not "!current_file!"=="!batname!.bat" (
+        del /f /q "%%F"
+    )
+)
 "%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
 ::=============================================================
 ::  Cek koneksi internet
 ::=============================================================
 echo   [3/10] Mengecek koneksi internet...
-"%SystemRoot%\System32\ping.exe" -n 1 google.com >nul 2>nul
+"%SystemRoot%\System32\ping.exe" -n 3 google.com >nul 2>nul
 if errorlevel 1 (
     set "message=[ERROR] TIDAK ADA KONEKSI INTERNET."
     call :msg
