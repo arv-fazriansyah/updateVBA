@@ -1,43 +1,47 @@
 # --- CONFIGURATION ---
 $port = "8080"
-$endpoint = "pesan" # URL akan menjadi http://localhost:8080/pesan
-$logFile = Join-Path $env:TEMP "vba_webhook_log.txt"
+$urlLocal = "http://127.0.0.1:$port"
+$folderARB = Join-Path $env:TEMP "ARB2026"
+$cfExe = Join-Path $folderARB "cloudflared.exe"
+$logFile = Join-Path $folderARB "vba_webhook_log.txt"
 
-# Initialize Listener
-$url = "http://127.0.0.1:$port/"
+if (-not (Test-Path $folderARB)) { New-Item -ItemType Directory -Path $folderARB }
+
+# 1. Download Cloudflared jika belum ada
+if (-not (Test-Path $cfExe)) {
+    (New-Object Net.WebClient).DownloadFile('https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe', $cfExe)
+}
+
+# 2. Jalankan Listener HTTP (Background)
 $listener = New-Object System.Net.HttpListener
-$listener.Prefixes.Add($url)
+$listener.Prefixes.Add("$urlLocal/")
+$listener.Start()
 
+# 3. Jalankan Cloudflare Tunnel & Kirim URL ke Excel
+Start-Job -ScriptBlock {
+    param($cfExe, $urlLocal)
+    & $cfExe tunnel --url $urlLocal 2>&1 | ForEach-Object {
+        if ($_ -match 'https://[a-z0-9-]+\.trycloudflare\.com') {
+            $urlPublik = $matches[0]
+            $excel = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
+            $excel.Sheets("DEV").Range("F10").Value = $urlPublik
+            $excel.Run("TampilkanToast", "Tunnel Aktif", "URL: $urlPublik", "")
+        }
+    }
+} -ArgumentList $cfExe, $urlLocal
+
+# 4. Loop Listener Utama
 try {
-    $listener.Start()
-    "[" + (Get-Date) + "] Listener Started at $url" | Out-File $logFile -Append
-
     while ($listener.IsListening) {
         $context = $listener.GetContext()
-        $request = $context.Request
-        
-        # Ambil pesan dari parameter ?teks=...
-        $pesan = $request.QueryString["teks"]
-        
-        if (-not [string]::IsNullOrWhiteSpace($pesan)) {
-            try {
-                # Hubungkan ke Excel yang sedang terbuka
-                $excel = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
-                
-                # Jalankan macro: NamaMacro, Judul, Pesan, PathGambar
-                $excel.Run("TampilkanToast", "Webhook Inbound", $pesan, "")
-                
-                "[" + (Get-Date) + "] Success: Sent '$pesan' to Excel" | Out-File $logFile -Append
-            } catch {
-                "[" + (Get-Date) + "] Excel Error: $($_.Exception.Message)" | Out-File $logFile -Append
-            }
+        $pesan = $context.Request.QueryString["teks"]
+        if ($pesan) {
+            $excel = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
+            $excel.Run("TampilkanToast", "Webhook Inbound", $pesan, "")
         }
-
-        # Kirim respon sukses ke pengirim (Browser/Fetch)
-        $buffer = [System.Text.Encoding]::UTF8.GetBytes("OK - Data diproses")
-        $context.Response.ContentLength64 = $buffer.Length
+        $buffer = [System.Text.Encoding]::UTF8.GetBytes("OK")
         $context.Response.OutputStream.Write($buffer, 0, $buffer.Length)
-        $context.Response.OutputStream.Close()
+        $context.Response.Close()
     }
 } finally {
     $listener.Stop()
