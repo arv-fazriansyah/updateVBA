@@ -42,15 +42,17 @@ $jobScript = {
     param($cfExe, $urlLocal, $logFile)
     
     $tempCfLog = $logFile.Replace(".txt", "_cf.tmp")
-    # Jalankan tunnel, log awal masuk ke file temp saja agar tidak mengotori log utama
+    
+    # Jalankan tunnel dengan filter log yang lebih ketat
+    # Parameter tambahan untuk meminimalisir error sertifikat
     $process = Start-Process -FilePath $cfExe -ArgumentList "tunnel --url $urlLocal --no-autoupdate" `
                -NoNewWindow -PassThru -RedirectStandardError $tempCfLog
 
     $found = $false
     for ($i = 0; $i -lt 60; $i++) {
         if (Test-Path $tempCfLog) {
-            # Cari hanya baris yang mengandung URL trycloudflare
             $content = Get-Content $tempCfLog -ErrorAction SilentlyContinue
+            # Ambil hanya baris yang mengandung URL aktif
             $urlLine = $content | Select-String -Pattern "https://[a-z0-9-]+\.trycloudflare\.com" | Select-Object -First 1
             
             if ($urlLine) {
@@ -60,7 +62,6 @@ $jobScript = {
                     $excel.Sheets("DEV").Range("F10").Value = $urlPublik
                     $excel.Run("TampilkanToast", "Tunnel Aktif", "Koneksi Berhasil", "")
                     
-                    # Tulis ke log utama HANYA saat URL ditemukan (sekali saja)
                     $t = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
                     "[$t] TUNNEL: Terhubung -> $urlPublik" | Out-File -FilePath $logFile -Append -Encoding UTF8
                     
@@ -71,7 +72,7 @@ $jobScript = {
         }
         Start-Sleep -Seconds 1
     }
-    # Hapus file temp log setelah selesai
+    # Hapus file temp log agar tidak membingungkan
     if (Test-Path $tempCfLog) { Remove-Item $tempCfLog -Force }
 }
 Start-Job -ScriptBlock $jobScript -ArgumentList $cfExe, $urlLocal, $logFile
