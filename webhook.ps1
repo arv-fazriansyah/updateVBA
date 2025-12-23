@@ -1,6 +1,5 @@
 # --- KONFIGURASI ---
-$port = "8080"
-$urlLocal = "http://127.0.0.1:$port"
+$port = 8080  # Port awal
 $currentDir = $PSScriptRoot
 if (-not $currentDir) { $currentDir = Get-Location }
 
@@ -23,11 +22,9 @@ function Kirim-Ke-Excel($judul, $isi) {
     try {
         if (Test-Path $pathTargetTxt) {
             $targetPath = (Get-Content $pathTargetTxt -Raw).Trim()
-            # Mencoba menyambung ke aplikasi Excel yang sedang terbuka
             $excel = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
             foreach ($wb in $excel.Workbooks) {
                 if ($wb.FullName -eq $targetPath) {
-                    # Memanggil Macro 'TampilkanToast' di Excel
                     $excel.Run("TampilkanToast", $judul, $isi, "")
                     return $true
                 }
@@ -39,7 +36,7 @@ function Kirim-Ke-Excel($judul, $isi) {
     return $false
 }
 
-# 1. Cek & Download Cloudflared jika belum ada
+# 1. Cek & Download Cloudflared
 if (-not (Test-Path $cfExe)) {
     Write-Log "INFO: Mendownload cloudflared..."
     try {
@@ -51,18 +48,31 @@ if (-not (Test-Path $cfExe)) {
     }
 }
 
-# 2. Inisialisasi Listener HTTP
+# 2. Inisialisasi Listener HTTP dengan Auto-Increment Port
 $listener = New-Object System.Net.HttpListener
-$listener.Prefixes.Add("$urlLocal/")
-try {
-    $listener.Start()
-    Write-Log "INFO: Listener aktif di $urlLocal"
-} catch {
-    Write-Log "ERROR: Port $port sudah digunakan aplikasi lain."
+$berhasilStatus = $false
+
+while (-not $berhasilStatus -and $port -lt 8100) {
+    try {
+        $urlLocal = "http://127.0.0.1:$port/"
+        $listener.Prefixes.Clear()
+        $listener.Prefixes.Add($urlLocal)
+        $listener.Start()
+        $berhasilStatus = $true
+        Write-Log "INFO: Listener aktif di $urlLocal"
+    } catch {
+        Write-Log "WARN: Port $port sibuk, mencoba port $($port + 1)..."
+        $port++
+    }
+}
+
+if (-not $listener.IsListening) {
+    Write-Log "ERROR: Tidak menemukan port kosong."
     exit
 }
 
 # 3. Jalankan Cloudflare Tunnel di Background
+# Kita kirimkan $urlLocal yang sudah fix portnya ke background job
 $job = Start-Job -ScriptBlock {
     param($cfExe, $urlLocal, $logFile, $pathTargetTxt)
     $tempCfLog = $logFile.Replace(".txt", "_cf.tmp")
@@ -95,29 +105,23 @@ $job = Start-Job -ScriptBlock {
     if (Test-Path $tempCfLog) { Remove-Item $tempCfLog -Force }
 } -ArgumentList $cfExe, $urlLocal, $logFile, $pathTargetTxt
 
-# 4. Loop Utama Penanganan Request
-Write-Log "INFO: Siap menerima webhook..."
+# 4. Loop Utama
 try {
     while ($listener.IsListening) {
         $context = $listener.GetContext()
         $req = $context.Request
         $res = $context.Response
         $path = $req.Url.LocalPath.ToLower()
-        # Baris inisialisasi default dihapus agar lebih bersih
         $stopLoop = $false
 
         switch ($path) {
-            "/" {
-                $responTeks = "OK"
-            }
+            "/" { $responTeks = "OK" }
             "/stop" {
                 $responTeks = "STOPPING"
                 Write-Log "INFO: Perintah STOP diterima."
                 $stopLoop = $true
             }
-            "/ping" {
-                $responTeks = "PONG"
-            }
+            "/ping" { $responTeks = "PONG" }
             "/status" {
                 $uptime = (Get-Date) - $startTime
                 $responTeks = "Uptime: $($uptime.ToString('hh\:mm\:ss')) | Pesan: $pesanTerhitung"
@@ -125,11 +129,9 @@ try {
             "/pesan" {
                 $pesan = $req.QueryString["teks"]
                 $judul = $req.QueryString["judul"]
-                
                 if ($pesan) {
                     $pesanTerhitung++
                     if (-not $judul) { $judul = "Notifikasi" }
-                    
                     Write-Log "WEBHOOK: [$judul] $pesan"
                     $success = Kirim-Ke-Excel $judul $pesan
                     $responTeks = if ($success) { "Diterima Excel" } else { "Excel Sedang Sibuk" }
@@ -137,12 +139,9 @@ try {
                     $responTeks = "Error: Parameter 'teks' diperlukan."
                 }
             }
-            default {
-                $responTeks = "Error: Endpoint $path tidak tersedia."
-            }
+            default { $responTeks = "Error: Endpoint $path tidak tersedia." }
         }
 
-        # Kirim Respon Balik ke Pengirim
         $buffer = [System.Text.Encoding]::UTF8.GetBytes($responTeks)
         $res.ContentLength64 = $buffer.Length
         $res.OutputStream.Write($buffer, 0, $buffer.Length)
@@ -151,10 +150,8 @@ try {
         if ($stopLoop) { break }
     }
 } finally {
-    # Pembersihan saat script berhenti
     Write-Log "INFO: Menutup semua proses..."
-    $listener.Stop()
-    $listener.Close()
+    $listener.Stop(); $listener.Close()
     Get-Job | Stop-Job | Remove-Job
     Stop-Process -Name "cloudflared" -Force -ErrorAction SilentlyContinue
     Write-Log "INFO: Selesai."
