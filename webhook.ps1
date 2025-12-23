@@ -12,21 +12,29 @@ try {
     "[" + (Get-Date) + "] Listener dimulai di $url" | Out-File $logFile -Append
 
     while ($listener.IsListening) {
-        # Menunggu permintaan datang
         $context = $listener.GetContext()
         $request = $context.Request
         
-        # Membaca Body/JSON yang dikirim
         $reader = New-Object System.IO.StreamReader($request.InputStream)
         $dataDiterima = $reader.ReadToEnd()
         $reader.Close()
 
-        # Mencatat data ke file log di folder TEMP
-        "[" + (Get-Date) + "] Data Diterima: $dataDiterima" | Out-File $logFile -Append
+        # --- BAGIAN MENJALANKAN MACRO EXCEL ---
+        try {
+            # Mengambil objek Excel yang sedang terbuka
+            $excel = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
+            
+            # Menjalankan Macro 'TampilkanToast' dengan parameter data yang diterima
+            # Format: $excel.Run("NamaMacro", "Argumen1", "Argumen2", ...)
+            $excel.Run("TampilkanToast", "Notifikasi Webhook", $dataDiterima)
+        }
+        catch {
+            "[" + (Get-Date) + "] Gagal memanggil Macro: $($_.Exception.Message)" | Out-File $logFile -Append
+        }
+        # ---------------------------------------
 
-        # Mengirim respon balik ke pengirim
         $response = $context.Response
-        $responseString = "Data berhasil diterima oleh Listener VBA!"
+        $responseString = "Macro berhasil dipicu!"
         $buffer = [System.Text.Encoding]::UTF8.GetBytes($responseString)
         $response.ContentLength64 = $buffer.Length
         $response.OutputStream.Write($buffer, 0, $buffer.Length)
