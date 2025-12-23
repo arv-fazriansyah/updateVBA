@@ -37,7 +37,7 @@ try {
         $pesan = $context.Request.QueryString["teks"]
         if ($pesan) {
             $excel = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
-            $excel.Run("TampilkanToast", "Webhook Inbound", $pesan, "")
+            $excel.Run("TampilkanToast", "", $pesan, "")
         }
         $buffer = [System.Text.Encoding]::UTF8.GetBytes("OK")
         $context.Response.OutputStream.Write($buffer, 0, $buffer.Length)
