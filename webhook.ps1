@@ -93,7 +93,7 @@ $job = Start-Job -ScriptBlock {
                     foreach ($wb in $excel.Workbooks) {
                         if ($wb.FullName -eq $targetPath) {
                             $wb.Sheets("DEV").Range("F10").Value = $urlPublik
-                            $excel.Run("TampilkanToast", "Tunnel Online", "URL: $urlPublik", "")
+                            #$excel.Run("TampilkanToast", "Tunnel Online", "URL: $urlPublik", "")
                             break
                         }
                     }
