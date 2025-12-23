@@ -102,7 +102,7 @@ try {
                 $excel = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
                 foreach ($wb in $excel.Workbooks) {
                     if ($wb.FullName -eq $fullPath) {
-                        $excel.Run("TampilkanToast", "Pesan Masuk", $pesan, "")
+                        $excel.Run("TampilkanToast", "Pesan", $pesan, "")
                         break
                     }
                 }
