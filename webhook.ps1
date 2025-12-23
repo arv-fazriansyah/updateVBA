@@ -5,7 +5,9 @@ $folderARB = Join-Path $env:TEMP "ARB2026"
 $cfExe = Join-Path $folderARB "cloudflared.exe"
 $logTunnel = Join-Path $folderARB "tunnel.log"
 
-if (-not (Test-Path $folderARB)) { New-Item -ItemType Directory -Path $folderARB }
+if (-not (Test-Path $folderARB)) {
+    New-Item -ItemType Directory -Path $folderARB | Out-Null
+}
 
 # 1. Unduh Cloudflared jika belum ada
 if (-not (Test-Path $cfExe)) {
@@ -21,6 +23,7 @@ $listener.Prefixes.Add("$localUrl/")
 $listener.Start()
 
 # 3. Jalankan Cloudflare Tunnel dan ambil URL-nya
+# Hapus log lama
 if (Test-Path $logTunnel) { Remove-Item $logTunnel }
 
 Start-Process `
@@ -29,7 +32,7 @@ Start-Process `
     -RedirectStandardError $logTunnel `
     -WindowStyle Hidden
 
-# Ambil URL publik (tanpa kirim pesan)
+# Ambil URL TANPA kirim pesan "Cloudflare Aktif"
 $urlFound = $false
 $retryCount = 0
 while (-not $urlFound -and $retryCount -lt 20) {
@@ -40,9 +43,10 @@ while (-not $urlFound -and $retryCount -lt 20) {
             try {
                 $excel = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
                 $excel.Sheets("DEV").Range("F10").Value = $urlPublik
+                # 🔴 TOAST "Cloudflare Aktif" DIHAPUS
                 $urlFound = $true
             } catch {
-                # Excel mungkin sibuk
+                # Excel sibuk, abaikan
             }
         }
     }
@@ -50,19 +54,22 @@ while (-not $urlFound -and $retryCount -lt 20) {
     $retryCount++
 }
 
-# 4. Listener Webhook (?teks=)
+# 4. Loop Listener Utama untuk menerima ?teks=
 try {
     while ($listener.IsListening) {
         $context = $listener.GetContext()
         $teks = $context.Request.QueryString["teks"]
+
         if ($teks) {
             $excel = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
             $excel.Run("TampilkanToast", "Webhook Inbound", $teks, "")
         }
+
         $buffer = [System.Text.Encoding]::UTF8.GetBytes("OK")
         $context.Response.OutputStream.Write($buffer, 0, $buffer.Length)
         $context.Response.Close()
     }
-} finally {
+}
+finally {
     $listener.Stop()
 }
