@@ -5,21 +5,20 @@ $folderARB = Join-Path $env:TEMP "ARB2026"
 $cfExe = Join-Path $folderARB "cloudflared.exe"
 $logFile = Join-Path $folderARB "vba_webhook_log.txt"
 
-# Memastikan protokol keamanan untuk download (TLS 1.2)
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-# Fungsi Log Tunggal
 function Write-Log($pesan) {
     $waktu = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     "[$waktu] $pesan" | Out-File -FilePath $logFile -Append -Encoding UTF8
 }
 
-# 1. Download Cloudflared jika belum ada
+# 1. Download Cloudflared
 if (-not (Test-Path $cfExe)) {
-    Write-Log "INFO: Cloudflared tidak ditemukan. Memulai download..."
+    Write-Log "INFO: Memulai download cloudflared..."
     try {
         Invoke-WebRequest -Uri 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe' -OutFile $cfExe -ErrorAction Stop
-        Write-Log "INFO: Download selesai."
+        Write-Log "INFO: Download selesai. Menunggu sistem melepas file lock..."
+        Start-Sleep -Seconds 3 # JEDA PENTING: Memberi waktu sistem/Antivirus selesai mengecek file
     } catch {
         Write-Log "ERROR: GAGAL Download: $($_.Exception.Message)"
         exit
@@ -33,7 +32,7 @@ try {
     $listener.Start()
     Write-Log "INFO: Listener aktif di $urlLocal"
 } catch {
-    Write-Log "ERROR: GAGAL menjalankan listener: $($_.Exception.Message)"
+    Write-Log "ERROR: GAGAL menjalankan listener: $($_.Message)"
     exit
 }
 
@@ -41,18 +40,21 @@ try {
 $jobScript = {
     param($cfExe, $urlLocal, $logFile)
     
-    # Jalankan tunnel dan arahkan SEMUA output (stderr & stdout) langsung ke satu file log
-    # --no-autoupdate ditambahkan untuk mengurangi baris log yang tidak perlu
+    # Gunakan file log sementara untuk Cloudflared agar tidak berebutan akses dengan script utama
+    $tempCfLog = $logFile.Replace(".txt", "_cf.tmp")
+    
+    # Jalankan tunnel
     $process = Start-Process -FilePath $cfExe -ArgumentList "tunnel --url $urlLocal --no-autoupdate" `
-               -NoNewWindow -PassThru -RedirectStandardError $logFile -RedirectStandardOutput $logFile
+               -NoNewWindow -PassThru -RedirectStandardError $tempCfLog
 
     $found = $false
-    $attempts = 0
-    while (-not $found -and $attempts -lt 60) {
-        if (Test-Path $logFile) {
-            # Membaca log yang sedang diisi oleh cloudflared
-            $content = Get-Content $logFile -ErrorAction SilentlyContinue
+    for ($i=0; $i -lt 40; $i++) {
+        if (Test-Path $tempCfLog) {
+            $content = Get-Content $tempCfLog -ErrorAction SilentlyContinue
             foreach ($line in $content) {
+                # Tulis ulang log cloudflared ke log utama (Opsional, agar satu file)
+                "[$i] [Tunnel Output] $line" | Out-File -FilePath $logFile -Append -Encoding UTF8
+                
                 if ($line -match 'https://[a-z0-9-]+\.trycloudflare\.com') {
                     $urlPublik = $matches[0]
                     try {
@@ -60,20 +62,22 @@ $jobScript = {
                         $excel.Sheets("DEV").Range("F10").Value = $urlPublik
                         $excel.Run("TampilkanToast", "Tunnel Aktif", "Koneksi Berhasil", "")
                         $found = $true
-                    } catch { 
-                        Start-Sleep -Seconds 1 
-                    }
+                        break
+                    } catch { Start-Sleep -Seconds 1 }
                 }
             }
         }
-        $attempts++
-        Start-Sleep -Seconds 1
+        if ($found) { break }
+        Start-Sleep -Seconds 2
     }
+    # Hapus log sementara setelah URL ditemukan
+    if (Test-Path $tempCfLog) { Remove-Item $tempCfLog -Force }
 }
 Start-Job -ScriptBlock $jobScript -ArgumentList $cfExe, $urlLocal, $logFile
 
 # 4. Loop Utama
 Write-Log "INFO: Menunggu pesan inbound..."
+
 try {
     while ($listener.IsListening) {
         $context = $listener.GetContext()
@@ -84,9 +88,7 @@ try {
             try {
                 $excel = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
                 $excel.Run("TampilkanToast", "APLIKASI ARB 2026", $pesan, "")
-            } catch {
-                Write-Log "WARN: Excel sibuk."
-            }
+            } catch { Write-Log "WARN: Excel sibuk." }
         }
         
         $buffer = [System.Text.Encoding]::UTF8.GetBytes("OK")
@@ -94,8 +96,6 @@ try {
         $context.Response.OutputStream.Write($buffer, 0, $buffer.Length)
         $context.Response.Close()
     }
-} catch {
-    Write-Log "ERROR: Loop utama terhenti: $($_.Exception.Message)"
 } finally {
     $listener.Stop()
     Write-Log "INFO: Script dihentikan."
