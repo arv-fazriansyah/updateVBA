@@ -1,108 +1,116 @@
 # --- CONFIGURATION ---
 $port = "8080"
 $urlLocal = "http://127.0.0.1:$port"
-
-# Mengambil lokasi folder tempat script ini disimpan secara otomatis
 $currentDir = $PSScriptRoot
-
-# Jika script belum disimpan (running in memory), gunakan folder kerja saat ini
 if (-not $currentDir) { $currentDir = Get-Location }
 
 $cfExe = Join-Path $currentDir "cloudflared.exe"
 $logFile = Join-Path $currentDir "vba_webhook_log.txt"
 
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-
-function Write-Log($pesan) {
+function Write-Log($pesan, $level = "INFO") {
     $waktu = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    "[$waktu] $pesan" | Out-File -FilePath $logFile -Append -Encoding UTF8
+    $logEntry = "[$waktu] [$level] $pesan"
+    Write-Host $logEntry -ForegroundColor (Switch($level) { "ERROR" {"Red"}; "WARN" {"Yellow"}; Default {"White"} })
+    $logEntry | Out-File -FilePath $logFile -Append -Encoding UTF8
 }
 
-# 1. Download Cloudflared jika belum ada di folder saat ini
+# --- 1. CEK KONEKSI INTERNET ---
+Write-Log "Memeriksa koneksi internet..."
+try {
+    $ping = Test-Connection -ComputerName google.com -Count 1 -ErrorAction Stop
+    Write-Log "Koneksi internet tersedia."
+} catch {
+    Write-Log "Tidak ada koneksi internet! Script dihentikan." "ERROR"
+    exit
+}
+
+# --- 2. CEK KONEKSI EXCEL ---
+$excel = $null
+try {
+    $excel = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
+    Write-Log "Excel terdeteksi dan siap."
+} catch {
+    Write-Log "Excel tidak terbuka. Script akan tetap berjalan, tapi data tidak akan terkirim." "WARN"
+}
+
+# --- 3. DOWNLOAD & VALIDASI CLOUDFLARED ---
 if (-not (Test-Path $cfExe)) {
-    Write-Log "INFO: Memulai download cloudflared ke $currentDir..."
+    Write-Log "Mendownload cloudflared..."
     try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         Invoke-WebRequest -Uri 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe' -OutFile $cfExe -ErrorAction Stop
         Unblock-File -Path $cfExe
-        Start-Sleep -Seconds 2
-        Write-Log "INFO: Download selesai."
+        Write-Log "Download selesai."
     } catch {
-        Write-Log "ERROR: GAGAL Download: $($_.Exception.Message)"
+        Write-Log "Gagal download: $($_.Exception.Message)" "ERROR"
         exit
     }
 }
 
-# 2. Jalankan Listener HTTP
+# --- 4. JALANKAN LISTENER ---
 $listener = New-Object System.Net.HttpListener
 $listener.Prefixes.Add("$urlLocal/")
 try {
     $listener.Start()
-    Write-Log "INFO: Listener aktif di $urlLocal"
 } catch {
-    Write-Log "ERROR: GAGAL listener: $($_.Exception.Message)"
+    Write-Log "Gagal memulai listener! Port $port mungkin dipakai aplikasi lain." "ERROR"
     exit
 }
 
-# 3. Jalankan Cloudflare Tunnel (Background Job)
+# --- 5. JALANKAN TUNNEL (JOB) ---
 $jobScript = {
     param($cfExe, $urlLocal, $logFile)
-    
     $tempCfLog = $logFile.Replace(".txt", "_cf.tmp")
+    Start-Process -FilePath $cfExe -ArgumentList "tunnel --url $urlLocal --no-autoupdate" `
+                  -NoNewWindow -RedirectStandardError $tempCfLog
     
-    # Jalankan tunnel tanpa jendela baru
-    $process = Start-Process -FilePath $cfExe -ArgumentList "tunnel --url $urlLocal --no-autoupdate" `
-               -NoNewWindow -PassThru -RedirectStandardError $tempCfLog
-
-    $found = $false
-    for ($i = 0; $i -lt 60; $i++) {
+    # Loop mencari URL
+    for ($i = 0; $i -lt 30; $i++) {
         if (Test-Path $tempCfLog) {
-            $content = Get-Content $tempCfLog -ErrorAction SilentlyContinue
-            # Mencari URL publik yang dihasilkan Cloudflare
-            $urlLine = $content | Select-String -Pattern "https://[a-z0-9-]+\.trycloudflare\.com" | Select-Object -First 1
-            
+            $urlLine = Get-Content $tempCfLog | Select-String -Pattern "https://[a-z0-9-]+\.trycloudflare\.com" | Select-Object -First 1
             if ($urlLine) {
                 $urlPublik = $urlLine.Matches.Value
                 try {
-                    $excel = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
-                    $excel.Sheets("DEV").Range("F10").Value = $urlPublik
-                    $excel.Run("TampilkanToast", "Tunnel Aktif", "Koneksi Berhasil", "")
-                    
-                    $t = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-                    "[$t] TUNNEL: Terhubung -> $urlPublik" | Out-File -FilePath $logFile -Append -Encoding UTF8
-                    
-                    $found = $true
-                    break
-                } catch { }
+                    $ex = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
+                    $ex.Sheets("DEV").Range("F10").Value = $urlPublik
+                    $ex.Run("TampilkanToast", "Tunnel Aktif", $urlPublik, "")
+                } catch {}
+                break
             }
         }
-        Start-Sleep -Seconds 1
+        Start-Sleep -Seconds 2
     }
-    if (Test-Path $tempCfLog) { Remove-Item $tempCfLog -Force }
 }
-Start-Job -ScriptBlock $jobScript -ArgumentList $cfExe, $urlLocal, $logFile
+$tunnelJob = Start-Job -ScriptBlock $jobScript -ArgumentList $cfExe, $urlLocal, $logFile
 
-# 4. Loop Utama untuk menerima Webhook
-Write-Log "INFO: Menunggu pesan inbound..."
+# --- 6. LOOP UTAMA ---
+Write-Log "Sistem Aktif. Menunggu Webhook di port $port..."
 try {
     while ($listener.IsListening) {
         $context = $listener.GetContext()
         $pesan = $context.Request.QueryString["teks"]
         
         if ($pesan) {
-            Write-Log "WEBHOOK: Pesan diterima -> $pesan"
+            Write-Log "Pesan masuk: $pesan"
             try {
                 $excel = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
                 $excel.Run("TampilkanToast", "Pesan Masuk", $pesan, "")
-            } catch { }
+            } catch {
+                Write-Log "Gagal kirim ke Excel (Mungkin Excel sibuk/diedit user)." "WARN"
+            }
         }
         
-        # Kirim respon balik ke pengirim webhook
         $buffer = [System.Text.Encoding]::UTF8.GetBytes("OK")
         $context.Response.ContentLength64 = $buffer.Length
         $context.Response.OutputStream.Write($buffer, 0, $buffer.Length)
         $context.Response.Close()
     }
 } finally {
+    # --- 7. CLEANUP (SANGAT PENTING) ---
+    Write-Log "Membersihkan proses sebelum keluar..."
     $listener.Stop()
-    Write-Log "INFO: Script dihentikan."
+    Stop-Job $tunnelJob
+    Get-Process "cloudflared" -ErrorAction SilentlyContinue | Stop-Process -Force
+    if (Test-Path $logFile.Replace(".txt", "_cf.tmp")) { Remove-Item $logFile.Replace(".txt", "_cf.tmp") -Force }
+    Write-Log "Selesai."
 }
