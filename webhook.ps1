@@ -130,14 +130,21 @@ try {
             "/pesan" {
                 $pesan = $req.QueryString["teks"]
                 $judul = $req.QueryString["judul"]
-                if ($pesan) {
+                
+                # Cek apakah judul ATAU teks ada (salah satu boleh kosong)
+                if ($pesan -ne $null -or $judul -ne $null) {
                     $pesanTerhitung++
+                    
+                    # Jika judul kosong, beri default "Notifikasi"
                     if (-not $judul) { $judul = "Notifikasi" }
+                    # Jika pesan kosong, beri string kosong agar tidak error di Excel
+                    if (-not $pesan) { $pesan = "" }
+                    
                     Write-Log "WEBHOOK: [$judul] $pesan"
                     $success = Kirim-Ke-Excel $judul $pesan
                     $responTeks = if ($success) { "Diterima Excel" } else { "Excel Sedang Sibuk" }
                 } else {
-                    $responTeks = "Error: Parameter 'teks' diperlukan."
+                    $responTeks = "Error: Parameter 'teks' atau 'judul' diperlukan."
                 }
             }
             default { $responTeks = "Error: Endpoint $path tidak tersedia." }
