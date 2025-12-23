@@ -115,7 +115,7 @@ try {
             if ($targetWb) {
                 try {
                     # Jalankan macro pada workbook yang spesifik
-                    $targetWb.Parent.Run("TampilkanToast", "Judul", $pesan, "")
+                    $targetWb.Parent.Run("TampilkanToast", "", $pesan, "")
                 } catch {
                     Write-Log "ERROR: Gagal menjalankan Macro."
                 }
