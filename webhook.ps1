@@ -59,7 +59,7 @@ while (-not $berhasilStatus -and $port -lt 8100) {
         $listener.Prefixes.Add($urlLocal)
         $listener.Start()
         $berhasilStatus = $true
-        $port | Out-File -FilePath (Join-Path $currentDir "port.txt") -Encoding UTF8
+        $port | Out-File -FilePath (Join-Path $currentDir "port.txt") -Encoding ASCII
         Write-Log "INFO: Listener aktif di $urlLocal"
     } catch {
         Write-Log "WARN: Port $port sibuk, mencoba port $($port + 1)..."
