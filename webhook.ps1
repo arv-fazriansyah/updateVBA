@@ -1,9 +1,15 @@
 # --- CONFIGURATION ---
 $port = "8080"
 $urlLocal = "http://127.0.0.1:$port"
-$folderARB = Join-Path $env:TEMP "ARB2026"
-$cfExe = Join-Path $folderARB "cloudflared.exe"
-$logFile = Join-Path $folderARB "vba_webhook_log.txt"
+
+# Mengambil lokasi folder tempat script ini disimpan secara otomatis
+$currentDir = $PSScriptRoot
+
+# Jika script belum disimpan (running in memory), gunakan folder kerja saat ini
+if (-not $currentDir) { $currentDir = Get-Location }
+
+$cfExe = Join-Path $currentDir "cloudflared.exe"
+$logFile = Join-Path $currentDir "vba_webhook_log.txt"
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
@@ -12,9 +18,9 @@ function Write-Log($pesan) {
     "[$waktu] $pesan" | Out-File -FilePath $logFile -Append -Encoding UTF8
 }
 
-# 1. Download Cloudflared jika belum ada
+# 1. Download Cloudflared jika belum ada di folder saat ini
 if (-not (Test-Path $cfExe)) {
-    Write-Log "INFO: Memulai download cloudflared..."
+    Write-Log "INFO: Memulai download cloudflared ke $currentDir..."
     try {
         Invoke-WebRequest -Uri 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe' -OutFile $cfExe -ErrorAction Stop
         Unblock-File -Path $cfExe
@@ -43,8 +49,7 @@ $jobScript = {
     
     $tempCfLog = $logFile.Replace(".txt", "_cf.tmp")
     
-    # Jalankan tunnel dengan filter log yang lebih ketat
-    # Parameter tambahan untuk meminimalisir error sertifikat
+    # Jalankan tunnel tanpa jendela baru
     $process = Start-Process -FilePath $cfExe -ArgumentList "tunnel --url $urlLocal --no-autoupdate" `
                -NoNewWindow -PassThru -RedirectStandardError $tempCfLog
 
@@ -52,7 +57,7 @@ $jobScript = {
     for ($i = 0; $i -lt 60; $i++) {
         if (Test-Path $tempCfLog) {
             $content = Get-Content $tempCfLog -ErrorAction SilentlyContinue
-            # Ambil hanya baris yang mengandung URL aktif
+            # Mencari URL publik yang dihasilkan Cloudflare
             $urlLine = $content | Select-String -Pattern "https://[a-z0-9-]+\.trycloudflare\.com" | Select-Object -First 1
             
             if ($urlLine) {
@@ -72,12 +77,11 @@ $jobScript = {
         }
         Start-Sleep -Seconds 1
     }
-    # Hapus file temp log agar tidak membingungkan
     if (Test-Path $tempCfLog) { Remove-Item $tempCfLog -Force }
 }
 Start-Job -ScriptBlock $jobScript -ArgumentList $cfExe, $urlLocal, $logFile
 
-# 4. Loop Utama
+# 4. Loop Utama untuk menerima Webhook
 Write-Log "INFO: Menunggu pesan inbound..."
 try {
     while ($listener.IsListening) {
@@ -88,10 +92,11 @@ try {
             Write-Log "WEBHOOK: Pesan diterima -> $pesan"
             try {
                 $excel = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
-                $excel.Run("TampilkanToast", "", $pesan, "")
+                $excel.Run("TampilkanToast", "Pesan Masuk", $pesan, "")
             } catch { }
         }
         
+        # Kirim respon balik ke pengirim webhook
         $buffer = [System.Text.Encoding]::UTF8.GetBytes("OK")
         $context.Response.ContentLength64 = $buffer.Length
         $context.Response.OutputStream.Write($buffer, 0, $buffer.Length)
