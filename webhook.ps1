@@ -46,7 +46,7 @@ Start-Job -ScriptBlock {
             try {
                 $excel = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
                 $excel.Sheets("DEV").Range("F10").Value = $urlPublik
-                $excel.Run("TampilkanToast", "Tunnel Aktif", "URL: $urlPublik", "")
+                # $excel.Run("TampilkanToast", "Tunnel Aktif", "URL: $urlPublik", "")
             } catch {
                 Job-Log "Gagal koneksi ke Excel: $($_.Exception.Message)"
             }
