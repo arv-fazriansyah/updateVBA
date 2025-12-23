@@ -119,6 +119,7 @@ try {
             }
             default {
                 $pesan = $req.QueryString["teks"]
+                $judul = $req.QueryString["judul"]
                 if ($pesan) {
                     $pesanTerhitung++
                     Write-Log "WEBHOOK: $pesan"
