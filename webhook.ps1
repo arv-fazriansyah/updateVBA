@@ -28,7 +28,7 @@ try {
             
             # Memanggil Sub TampilkanToast(judul, pesan, imgPath)
             # Parameter teks dari URL dikirim sebagai 'pesan'
-            $excel.Run("TampilkanToast", "Pesan Masuk", $pesanDariUrl, "")
+            $excel.Run("TampilkanToast", "", $pesanDariUrl, "")
             
             "[" + (Get-Date) + "] Berhasil memicu macro dengan teks: $pesanDariUrl" | Out-File $logFile -Append
         }
