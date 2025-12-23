@@ -88,7 +88,7 @@ try {
             Write-Log "WEBHOOK: Pesan diterima -> $pesan"
             try {
                 $excel = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
-                $excel.Run("TampilkanToast", "", $pesan, "")
+                $excel.Run("TampilkanToast", "TES", $pesan, "")
             } catch { }
         }
         
