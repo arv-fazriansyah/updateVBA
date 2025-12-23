@@ -12,17 +12,17 @@ function Write-Log($pesan) {
     "[$waktu] $pesan" | Out-File -FilePath $logFile -Append -Encoding UTF8
 }
 
-# 1. Download Cloudflared
+# 1. Download Cloudflared jika belum ada
 if (-not (Test-Path $cfExe)) {
-    Write-Log "INFO: Memulai download Cloudflared..."
+    Write-Log "INFO: Cloudflared tidak ditemukan. Memulai download..."
     try {
         Invoke-WebRequest -Uri 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe' -OutFile $cfExe -ErrorAction Stop
         
-        # PENTING: Buka blokir file dan beri jeda agar sistem melepas lock file
-        Unblock-File -Path $cfExe
-        Start-Sleep -Seconds 2 
+        # --- PERBAIKAN 1: Unblock File & Jeda ---
+        Unblock-File -Path $cfExe  # Lepas proteksi keamanan Windows
+        Start-Sleep -Seconds 2     # Beri waktu OS mencatat file baru
         
-        Write-Log "INFO: Download selesai dan file di-unblock."
+        Write-Log "INFO: Download selesai dan file telah di-unblock."
     } catch {
         Write-Log "ERROR: GAGAL Download: $($_.Exception.Message)"
         exit
@@ -36,7 +36,7 @@ try {
     $listener.Start()
     Write-Log "INFO: Listener aktif di $urlLocal"
 } catch {
-    Write-Log "ERROR: GAGAL listener: $($_.Exception.Message)"
+    Write-Log "ERROR: GAGAL menjalankan listener: $($_.Exception.Message)"
     exit
 }
 
@@ -44,34 +44,39 @@ try {
 $jobScript = {
     param($cfExe, $urlLocal, $logFile)
     
-    # Beri jeda ekstra di dalam job untuk memastikan file siap
-    Start-Sleep -Seconds 1
+    # --- PERBAIKAN 2: Gunakan File Log Terpisah Sementara ---
+    # Jika cloudflared langsung menulis ke log utama saat log utama sedang ditulis oleh script, 
+    # dia akan gagal start. Kita gunakan temp log lalu satukan.
+    $tempCfLog = $logFile.Replace(".txt", "_cf.tmp")
 
-    # Menggunakan Start-Process dengan penanganan error log yang lebih stabil
-    # Kami menggunakan pemisahan sementara untuk pembacaan agar tidak bentrok
     $process = Start-Process -FilePath $cfExe -ArgumentList "tunnel --url $urlLocal --no-autoupdate" `
-               -NoNewWindow -PassThru -RedirectStandardError $logFile -RedirectStandardOutput $logFile
+               -NoNewWindow -PassThru -RedirectStandardError $tempCfLog
 
     $found = $false
     for ($i = 0; $i -lt 60; $i++) {
-        if (Test-Path $logFile) {
-            # Membaca log dengan -ReadCount 0 agar lebih cepat dan tidak mengunci file
-            $content = Get-Content $logFile -ErrorAction SilentlyContinue
-            if ($content -match 'https://[a-z0-9-]+\.trycloudflare\.com') {
-                $urlPublik = ($content | Select-String 'https://[a-z0-9-]+\.trycloudflare\.com').Matches[0].Value
-                try {
-                    $excel = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
-                    $excel.Sheets("DEV").Range("F10").Value = $urlPublik
-                    $excel.Run("TampilkanToast", "Tunnel Aktif", "Koneksi Berhasil", "")
-                    $found = $true
-                    break
-                } catch { Start-Sleep -Seconds 1 }
+        if (Test-Path $tempCfLog) {
+            $content = Get-Content $tempCfLog -ErrorAction SilentlyContinue
+            foreach ($line in $content) {
+                # Pindahkan isi temp log ke log utama (untuk monitoring)
+                $line | Out-File -FilePath $logFile -Append -Encoding UTF8
+                
+                if ($line -match 'https://[a-z0-9-]+\.trycloudflare\.com') {
+                    $urlPublik = $matches[0]
+                    try {
+                        $excel = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
+                        $excel.Sheets("DEV").Range("F10").Value = $urlPublik
+                        $excel.Run("TampilkanToast", "Tunnel Aktif", "Koneksi Berhasil", "")
+                        $found = $true
+                        break
+                    } catch { }
+                }
             }
+            if ($found) { break }
         }
         Start-Sleep -Seconds 1
     }
 }
-Start-Job -Name "CloudflareTunnel" -ScriptBlock $jobScript -ArgumentList $cfExe, $urlLocal, $logFile
+Start-Job -ScriptBlock $jobScript -ArgumentList $cfExe, $urlLocal, $logFile
 
 # 4. Loop Utama
 Write-Log "INFO: Menunggu pesan inbound..."
@@ -81,11 +86,11 @@ try {
         $pesan = $context.Request.QueryString["teks"]
         
         if ($pesan) {
-            Write-Log "WEBHOOK: $pesan"
+            Write-Log "WEBHOOK: Pesan diterima -> $pesan"
             try {
                 $excel = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
                 $excel.Run("TampilkanToast", "APLIKASI ARB 2026", $pesan, "")
-            } catch { }
+            } catch { Write-Log "WARN: Excel sibuk." }
         }
         
         $buffer = [System.Text.Encoding]::UTF8.GetBytes("OK")
