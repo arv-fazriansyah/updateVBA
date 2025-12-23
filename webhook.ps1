@@ -5,7 +5,7 @@ $folderARB = Join-Path $env:TEMP "ARB2026"
 $cfExe = Join-Path $folderARB "cloudflared.exe"
 $logFile = Join-Path $folderARB "vba_webhook_log.txt"
 
-if (-not (Test-Path $folderARB)) { New-Item -ItemType Directory -Path $folderARB }
+# --- BAGIAN PEMBUATAN FOLDER SUDAH DIHAPUS (SUDAH DITANGANI VBA) ---
 
 # 1. Download Cloudflared jika belum ada
 if (-not (Test-Path $cfExe)) {
