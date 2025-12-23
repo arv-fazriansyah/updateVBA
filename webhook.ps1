@@ -136,7 +136,7 @@ try {
                     $pesanTerhitung++
                     
                     # Jika judul kosong, beri default "Notifikasi"
-                    if (-not $judul) { $judul = "Notifikasi" }
+                    if (-not $judul) { $judul = "" }
                     # Jika pesan kosong, beri string kosong agar tidak error di Excel
                     if (-not $pesan) { $pesan = "" }
                     
