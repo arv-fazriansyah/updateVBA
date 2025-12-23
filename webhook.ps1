@@ -1,24 +1,44 @@
 # --- CONFIGURATION ---
 $port = "8080"
 $urlLocal = "http://127.0.0.1:$port"
-
-# Mengambil lokasi folder tempat script ini disimpan secara otomatis
 $currentDir = $PSScriptRoot
-
-# Jika script belum disimpan (running in memory), gunakan folder kerja saat ini
 if (-not $currentDir) { $currentDir = Get-Location }
 
 $cfExe = Join-Path $currentDir "cloudflared.exe"
 $logFile = Join-Path $currentDir "vba_webhook_log.txt"
+$pathTargetTxt = Join-Path $currentDir "target_excel.txt" # File penyimpan path Excel
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
+# Fungsi untuk mencatat log
 function Write-Log($pesan) {
     $waktu = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     "[$waktu] $pesan" | Out-File -FilePath $logFile -Append -Encoding UTF8
 }
 
-# 1. Download Cloudflared jika belum ada di folder saat ini
+# Fungsi untuk mendapatkan objek Workbook yang spesifik
+function Get-SpecificWorkbook {
+    if (Test-Path $pathTargetTxt) {
+        $fullPath = Get-Content $pathTargetTxt -Raw
+        $fullPath = $fullPath.Trim()
+        
+        try {
+            $excelApp = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
+            foreach ($wb in $excelApp.Workbooks) {
+                if ($wb.FullName -eq $fullPath) {
+                    return $wb
+                }
+            }
+        } catch {
+            Write-Log "ERROR: Excel tidak ditemukan atau tidak merespon."
+        }
+    } else {
+        Write-Log "WARNING: File target_excel.txt tidak ditemukan."
+    }
+    return $null
+}
+
+# 1. Download Cloudflared jika belum ada
 if (-not (Test-Path $cfExe)) {
     Write-Log "INFO: Memulai download cloudflared ke $currentDir..."
     try {
@@ -45,41 +65,42 @@ try {
 
 # 3. Jalankan Cloudflare Tunnel (Background Job)
 $jobScript = {
-    param($cfExe, $urlLocal, $logFile)
+    param($cfExe, $urlLocal, $logFile, $pathTargetTxt)
     
     $tempCfLog = $logFile.Replace(".txt", "_cf.tmp")
-    
-    # Jalankan tunnel tanpa jendela baru
     $process = Start-Process -FilePath $cfExe -ArgumentList "tunnel --url $urlLocal --no-autoupdate" `
                -NoNewWindow -PassThru -RedirectStandardError $tempCfLog
 
-    $found = $false
     for ($i = 0; $i -lt 60; $i++) {
         if (Test-Path $tempCfLog) {
             $content = Get-Content $tempCfLog -ErrorAction SilentlyContinue
-            # Mencari URL publik yang dihasilkan Cloudflare
             $urlLine = $content | Select-String -Pattern "https://[a-z0-9-]+\.trycloudflare\.com" | Select-Object -First 1
             
             if ($urlLine) {
                 $urlPublik = $urlLine.Matches.Value
-                try {
-                    $excel = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
-                    $excel.Sheets("DEV").Range("F10").Value = $urlPublik
-                    $excel.Run("TampilkanToast", "Tunnel Aktif", "Koneksi Berhasil", "")
-                    
-                    $t = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-                    "[$t] TUNNEL: Terhubung -> $urlPublik" | Out-File -FilePath $logFile -Append -Encoding UTF8
-                    
-                    $found = $true
-                    break
-                } catch { }
+                
+                # Cari workbook tujuan dari job background
+                if (Test-Path $pathTargetTxt) {
+                    $fullPath = (Get-Content $pathTargetTxt -Raw).Trim()
+                    try {
+                        $excelApp = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
+                        foreach ($wb in $excelApp.Workbooks) {
+                            if ($wb.FullName -eq $fullPath) {
+                                $wb.Sheets("DEV").Range("F10").Value = $urlPublik
+                                $excelApp.Run("TampilkanToast", "Tunnel Aktif", "Koneksi Berhasil", "")
+                                break
+                            }
+                        }
+                    } catch { }
+                }
+                break
             }
         }
         Start-Sleep -Seconds 1
     }
     if (Test-Path $tempCfLog) { Remove-Item $tempCfLog -Force }
 }
-Start-Job -ScriptBlock $jobScript -ArgumentList $cfExe, $urlLocal, $logFile
+Start-Job -ScriptBlock $jobScript -ArgumentList $cfExe, $urlLocal, $logFile, $pathTargetTxt
 
 # 4. Loop Utama untuk menerima Webhook
 Write-Log "INFO: Menunggu pesan inbound..."
@@ -90,13 +111,19 @@ try {
         
         if ($pesan) {
             Write-Log "WEBHOOK: Pesan diterima -> $pesan"
-            try {
-                $excel = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
-                $excel.Run("TampilkanToast", "Pesan Masuk", $pesan, "")
-            } catch { }
+            $targetWb = Get-SpecificWorkbook
+            if ($targetWb) {
+                try {
+                    # Jalankan macro pada workbook yang spesifik
+                    $targetWb.Parent.Run("TampilkanToast", "Pesan Masuk", $pesan, "")
+                } catch {
+                    Write-Log "ERROR: Gagal menjalankan Macro."
+                }
+            } else {
+                Write-Log "ERROR: Excel tujuan tidak ditemukan."
+            }
         }
         
-        # Kirim respon balik ke pengirim webhook
         $buffer = [System.Text.Encoding]::UTF8.GetBytes("OK")
         $context.Response.ContentLength64 = $buffer.Length
         $context.Response.OutputStream.Write($buffer, 0, $buffer.Length)
