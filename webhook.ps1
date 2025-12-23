@@ -103,10 +103,13 @@ try {
         $req = $context.Request
         $res = $context.Response
         $path = $req.Url.LocalPath.ToLower()
-        $responTeks = "OK"
+        # Baris inisialisasi default dihapus agar lebih bersih
         $stopLoop = $false
 
         switch ($path) {
+            "/" {
+                $responTeks = "OK"
+            }
             "/stop" {
                 $responTeks = "STOPPING"
                 Write-Log "INFO: Perintah STOP diterima."
