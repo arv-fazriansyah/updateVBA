@@ -86,7 +86,7 @@ try {
             Write-Log "Pesan diterima: $pesan"
             try {
                 $excel = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
-                $excel.Run("TampilkanToast", "Webhook Inbound", $pesan, "")
+                $excel.Run("TampilkanToast", "APLIKASI ARB 2026", $pesan, "")
             } catch {
                 Write-Log "Excel sibuk atau tidak ditemukan."
             }
