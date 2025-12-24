@@ -172,40 +172,14 @@ try {
     }
 } finally {
     Write-Log "INFO: Menutup semua proses..."
-    
-    # 1. Hentikan Listener HTTP
-    if ($null -ne $listener) {
-        $listener.Stop()
-        $listener.Close()
-    }
-
-    # 2. Matikan Cloudflared spesifik
-    if (Test-Path $pidPath) {
-        $rawPid = Get-Content $pidPath -Raw
-        if ($rawPid) {
-            $savedPid = $rawPid.Trim()
-            Write-Log "INFO: Mematikan Cloudflared (PID: $savedPid)"
-            Stop-Process -Id $savedPid -Force -ErrorAction SilentlyContinue
-            
-            # --- TAMBAHAN PENTING: Tunggu proses benar-benar lepas ---
-            Start-Sleep -Milliseconds 500 
-        }
-        Remove-Item $pidPath -Force -ErrorAction SilentlyContinue
-    }
-
-    # 3. Bersihkan sisa job
+    $listener.Stop(); $listener.Close()
     Get-Job | Stop-Job | Remove-Job
 
-    # 4. Hapus file temp dengan proteksi extra
-    if (Test-Path $tempCfLog) { 
-        # Coba hapus, jika gagal tunggu sebentar lagi lalu coba sekali lagi
-        try {
-            Remove-Item $tempCfLog -Force -ErrorAction Stop
-        } catch {
-            Start-Sleep -Seconds 1
-            Remove-Item $tempCfLog -Force -ErrorAction SilentlyContinue
-        }
+    # MODIFIKASI: Matikan hanya cloudflared milik kita sendiri (berdasarkan PID)
+    if ($cfPid) {
+        Stop-Process -Id $cfPid -Force -ErrorAction SilentlyContinue
     }
     
+    if (Test-Path $tempCfLog) { Remove-Item $tempCfLog -Force }
     Write-Log "INFO: Selesai."
 }
