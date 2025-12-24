@@ -1,26 +1,33 @@
-# --- KONFIGURASI ---
-$port = 8080  # Port awal
-$currentDir = $PSScriptRoot
-if (-not $currentDir) { $currentDir = Get-Location }
+# ==========================================================
+# --- KONFIGURASI UTAMA (Fokus di sini untuk setting) ---
+# ==========================================================
+$port           = 8080
+$urlDownloadCF  = 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe'
 
-# MODIFIKASI: cloudflared.exe dicari di folder induk (1. LISTENER)
-$parentDir = Split-Path $currentDir -Parent
-$cfExe = Join-Path $parentDir "cloudflared.exe"
+# Lokasi File & Folder
+$currentDir     = if ($PSScriptRoot) { $PSScriptRoot } else { Get-Location }
+$parentDir      = Split-Path $currentDir -Parent
+$cfExe          = Join-Path $parentDir "cloudflared.exe"
+$logFile        = Join-Path $currentDir "log.txt"
+$pathTargetTxt  = Join-Path $currentDir "target.txt"
+$pidPath        = Join-Path $currentDir "pid.txt"
+$portFilePath   = Join-Path $currentDir "port.txt"
+$tempCfLog      = Join-Path $currentDir "cf.tmp"
 
-$logFile = Join-Path $currentDir "log.txt"
-$pathTargetTxt = Join-Path $currentDir "target.txt"
-$startTime = Get-Date
+# Inisialisasi Global
+$startTime      = Get-Date
 $pesanTerhitung = 0
-
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-# Fungsi Log
+# ==========================================================
+# --- FUNGSI HELPER ---
+# ==========================================================
+
 function Write-Log($pesan) {
     $waktu = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     "[$waktu] $pesan" | Out-File -FilePath $logFile -Append -Encoding UTF8
 }
 
-# Fungsi Helper untuk kirim data ke Excel
 function Kirim-Ke-Excel($judul, $isi) {
     try {
         if (Test-Path $pathTargetTxt) {
@@ -28,43 +35,50 @@ function Kirim-Ke-Excel($judul, $isi) {
             $excel = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
             foreach ($wb in $excel.Workbooks) {
                 if ($wb.FullName -eq $targetPath) {
+                    # NILAI TETAP (BUKAN VARIABEL)
                     $excel.Run("TampilkanToast", $judul, $isi, "")
                     return $true
                 }
             }
         }
     } catch { 
-        Write-Log "DEBUG: Gagal kirim ke Excel (Mungkin Excel sibuk/tutup)"
+        Write-Log "DEBUG: Excel sibuk atau file target belum dibuka."
     }
     return $false
 }
 
-# 1. Cek & Download Cloudflared
+# ==========================================================
+# --- 1. PERSIAPAN: DOWNLOAD & FIREWALL ---
+# ==========================================================
+
 if (-not (Test-Path $cfExe)) {
-    Write-Log "INFO: Mendownload cloudflared..."
+    Write-Log "INFO: Mendownload cloudflared dari $urlDownloadCF"
     try {
-        Invoke-WebRequest -Uri 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe' -OutFile $cfExe -ErrorAction Stop
+        Invoke-WebRequest -Uri $urlDownloadCF -OutFile $cfExe -ErrorAction Stop
         Unblock-File -Path $cfExe
+        Write-Log "INFO: Download selesai."
     } catch {
         Write-Log "ERROR: Gagal download: $($_.Exception.Message)"
         exit
     }
 }
 
-# --- TAMBAHAN: Logika Allow Firewall ---
 try {
     $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
     if ($principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
         if (-not (Get-NetFirewallRule -DisplayName "Allow Cloudflared" -ErrorAction SilentlyContinue)) {
-            Write-Log "INFO: Mendaftarkan aturan Firewall baru..."
+            Write-Log "INFO: Mendaftarkan aturan Firewall..."
             New-NetFirewallRule -DisplayName "Allow Cloudflared" -Direction Inbound -Program $cfExe -Action Allow -ErrorAction Stop
         }
     }
 } catch {
-    Write-Log "WARN: Gagal mendaftarkan Firewall (Bukan Admin atau Error: $($_.Exception.Message))"
+    Write-Log "WARN: Gagal set Firewall (Abaikan jika bukan Admin)"
 }
 
-# 2. Inisialisasi Listener HTTP dengan Auto-Increment Port
+# ==========================================================
+# --- 2. START HTTP LISTENER (AUTO-INCREMENT PORT) ---
+# ==========================================================
+
 $listener = New-Object System.Net.HttpListener
 $berhasilStatus = $false
 
@@ -75,7 +89,7 @@ while (-not $berhasilStatus -and $port -lt 8100) {
         $listener.Prefixes.Add($urlLocal)
         $listener.Start()
         $berhasilStatus = $true
-        $port | Out-File -FilePath (Join-Path $currentDir "port.txt") -Encoding ASCII
+        $port | Out-File -FilePath $portFilePath -Encoding ASCII
         Write-Log "INFO: Listener aktif di $urlLocal"
     } catch {
         Write-Log "WARN: Port $port sibuk, mencoba port $($port + 1)..."
@@ -84,22 +98,23 @@ while (-not $berhasilStatus -and $port -lt 8100) {
 }
 
 if (-not $listener.IsListening) {
-    Write-Log "ERROR: Tidak menemukan port kosong."
+    Write-Log "ERROR: Tidak ada port tersedia."
     exit
 }
 
-# 3. Jalankan Cloudflare Tunnel di Background
-# MODIFIKASI: Menangkap PID agar bisa dimatikan secara spesifik nanti
-$tempCfLog = Join-Path $currentDir "cf.tmp"
+# ==========================================================
+# --- 3. JALANKAN TUNNEL & MONITOR URL PUBLIK ---
+# ==========================================================
+
 $cfProc = Start-Process -FilePath $cfExe -ArgumentList "tunnel --url $urlLocal --no-autoupdate --grace-period 1s" `
-              -NoNewWindow -PassThru -RedirectStandardError $tempCfLog
+          -NoNewWindow -PassThru -RedirectStandardError $tempCfLog
 
 $cfPid = $cfProc.Id
-$cfPid | Out-File -FilePath (Join-Path $currentDir "pid.txt") -Encoding ASCII
+$cfPid | Out-File -FilePath $pidPath -Encoding ASCII
 
+# Job monitoring URL publik untuk dimasukkan ke Excel
 $job = Start-Job -ScriptBlock {
     param($tempCfLog, $pathTargetTxt)
-    
     for ($i = 0; $i -lt 60; $i++) {
         if (Test-Path $tempCfLog) {
             $content = Get-Content $tempCfLog -ErrorAction SilentlyContinue
@@ -111,7 +126,9 @@ $job = Start-Job -ScriptBlock {
                     $excel = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
                     foreach ($wb in $excel.Workbooks) {
                         if ($wb.FullName -eq $targetPath) {
+                            # NILAI TETAP: Sheet "DEV" dan Cell "F10"
                             $wb.Sheets("DEV").Range("F10").Value = $urlPublik
+                            Write-Log "URL: $urlPublik"
                             break
                         }
                     }
@@ -123,7 +140,10 @@ $job = Start-Job -ScriptBlock {
     }
 } -ArgumentList $tempCfLog, $pathTargetTxt
 
-# 4. Loop Utama
+# ==========================================================
+# --- 4. LOOP UTAMA: HANDLING REQUEST ---
+# ==========================================================
+
 try {
     while ($listener.IsListening) {
         $context = $listener.GetContext()
@@ -133,34 +153,25 @@ try {
         $stopLoop = $false
 
         switch ($path) {
-            "/" { $responTeks = "OK" }
-            "/stop" {
-                $responTeks = "STOPPING"
-                Write-Log "INFO: Perintah STOP diterima."
-                $stopLoop = $true
-            }
-            "/ping" { $responTeks = "PONG" }
-            "/status" {
+            "/"        { $responTeks = "OK" }
+            "/stop"    { $responTeks = "STOPPING"; $stopLoop = $true; Write-Log "INFO: Stop command received." }
+            "/ping"    { $responTeks = "PONG" }
+            "/status"  {
                 $uptime = (Get-Date) - $startTime
                 $responTeks = "Uptime: $($uptime.ToString('hh\:mm\:ss')) | Pesan: $pesanTerhitung"
             }
-            "/pesan" {
+            "/pesan"   {
                 $pesan = $req.QueryString["teks"]
                 $judul = $req.QueryString["judul"]
-                
                 if ($null -ne $pesan -or $null -ne $judul) {
                     $pesanTerhitung++
-                    if (-not $judul) { $judul = "" }
-                    if (-not $pesan) { $pesan = "" }
-                    
-                    Write-Log "WEBHOOK: [$judul] $pesan"
-                    $success = Kirim-Ke-Excel $judul $pesan
+                    $success = Kirim-Ke-Excel ($judul ?? "") ($pesan ?? "")
                     $responTeks = if ($success) { "Diterima Excel" } else { "Excel Sedang Sibuk" }
                 } else {
-                    $responTeks = "Error: Parameter 'teks' atau 'judul' diperlukan."
+                    $responTeks = "Error: Parameter teks/judul kosong."
                 }
             }
-            default { $responTeks = "Error: Endpoint $path tidak tersedia." }
+            default    { $responTeks = "Error: Endpoint $path tidak tersedia." }
         }
 
         $buffer = [System.Text.Encoding]::UTF8.GetBytes($responTeks)
@@ -171,26 +182,16 @@ try {
         if ($stopLoop) { break }
     }
 } finally {
-    Write-Log "INFO: Menutup semua proses..."
+    Write-Log "INFO: Membersihkan proses..."
+    if ($null -ne $listener) { $listener.Stop(); $listener.Close() }
     
-    # 1. Hentikan Listener HTTP
-    if ($null -ne $listener) {
-        $listener.Stop()
-        $listener.Close()
-    }
-
-    # 2. Matikan Cloudflared spesifik milik ROOM ini saja
-    $pidPath = Join-Path $currentDir "pid.txt"
+    # Matikan cloudflared berdasarkan PID yang disimpan
     if (Test-Path $pidPath) {
         $savedPid = (Get-Content $pidPath -Raw).Trim()
-        if ($savedPid) {
-            Write-Log "INFO: Mematikan Cloudflared (PID: $savedPid)"
-            Stop-Process -Id $savedPid -Force -ErrorAction SilentlyContinue
-        }
+        if ($savedPid) { Stop-Process -Id $savedPid -Force -ErrorAction SilentlyContinue }
         Remove-Item $pidPath -Force -ErrorAction SilentlyContinue
     }
-
-    # 3. Bersihkan sisa job background dan file temp
+    
     Get-Job | Stop-Job | Remove-Job
     Write-Log "INFO: Selesai."
 }
