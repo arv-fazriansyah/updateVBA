@@ -171,29 +171,28 @@ try {
         if ($stopLoop) { break }
     }
 } finally {
-    Write-Log "INFO: Menutup proses..."
+    Write-Log "INFO: Menutup semua proses..."
     
-    # 1. Hentikan Listener & Jobs (Melepaskan handle script)
-    if ($null -ne $listener) { $listener.Stop(); $listener.Close() }
-    Get-Job | Stop-Job | Remove-Job -Force
+    # 1. Hentikan Listener HTTP
+    if ($null -ne $listener) {
+        $listener.Stop()
+        $listener.Close()
+    }
 
-    # 2. Kill Cloudflared (Berdasarkan PID dari file)
+    # 2. Matikan Cloudflared spesifik milik ROOM ini saja
+    $pidPath = Join-Path $currentDir "pid.txt"
     if (Test-Path $pidPath) {
-        $id = (Get-Content $pidPath -Raw).Trim()
-        Stop-Process -Id $id -Force -ErrorAction SilentlyContinue
-        # Tunggu max 2 detik sampai proses benar-benar hilang dari RAM
-        Wait-Process -Id $id -ErrorAction SilentlyContinue -Timeout 2
+        $savedPid = Get-Content $pidPath -Raw
+        if ($savedPid) {
+            Write-Log "INFO: Mematikan Cloudflared (PID: $savedPid)"
+            Stop-Process -Id $savedPid -Force -ErrorAction SilentlyContinue
+        }
         Remove-Item $pidPath -Force -ErrorAction SilentlyContinue
     }
 
-    # 3. Paksa Hapus File Log (Dengan jeda singkat)
-    Start-Sleep -Milliseconds 500
-    if (Test-Path $tempCfLog) { 
-        Remove-Item $tempCfLog -Force -ErrorAction SilentlyContinue 
-    }
-
-    Write-Log "INFO: Selesai."
+    # 3. Bersihkan sisa job background dan file temp
+    Get-Job | Stop-Job | Remove-Job
+    if (Test-Path $tempCfLog) { Remove-Item $tempCfLog -Force }
     
-    # 4. SELF-DESTRUCT (Tutup Terminal Otomatis)
-    Stop-Process -Id $PID -Force
+    Write-Log "INFO: Selesai."
 }
