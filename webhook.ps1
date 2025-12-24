@@ -179,20 +179,33 @@ try {
         $listener.Close()
     }
 
-    # 2. Matikan Cloudflared spesifik (menggunakan PID dari file + Trim)
+    # 2. Matikan Cloudflared spesifik
     if (Test-Path $pidPath) {
         $rawPid = Get-Content $pidPath -Raw
         if ($rawPid) {
             $savedPid = $rawPid.Trim()
             Write-Log "INFO: Mematikan Cloudflared (PID: $savedPid)"
             Stop-Process -Id $savedPid -Force -ErrorAction SilentlyContinue
+            
+            # --- TAMBAHAN PENTING: Tunggu proses benar-benar lepas ---
+            Start-Sleep -Milliseconds 500 
         }
         Remove-Item $pidPath -Force -ErrorAction SilentlyContinue
     }
 
-    # 3. Bersihkan sisa job background dan file temp
+    # 3. Bersihkan sisa job
     Get-Job | Stop-Job | Remove-Job
-    if (Test-Path $tempCfLog) { Remove-Item $tempCfLog -Force }
+
+    # 4. Hapus file temp dengan proteksi extra
+    if (Test-Path $tempCfLog) { 
+        # Coba hapus, jika gagal tunggu sebentar lagi lalu coba sekali lagi
+        try {
+            Remove-Item $tempCfLog -Force -ErrorAction Stop
+        } catch {
+            Start-Sleep -Seconds 1
+            Remove-Item $tempCfLog -Force -ErrorAction SilentlyContinue
+        }
+    }
     
     Write-Log "INFO: Selesai."
 }
