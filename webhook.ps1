@@ -182,7 +182,7 @@ try {
     # 2. Matikan Cloudflared spesifik milik ROOM ini saja
     $pidPath = Join-Path $currentDir "pid.txt"
     if (Test-Path $pidPath) {
-        $savedPid = Get-Content $pidPath -Raw
+        $savedPid = (Get-Content $pidPath -Raw).Trim()
         if ($savedPid) {
             Write-Log "INFO: Mematikan Cloudflared (PID: $savedPid)"
             Stop-Process -Id $savedPid -Force -ErrorAction SilentlyContinue
@@ -192,7 +192,5 @@ try {
 
     # 3. Bersihkan sisa job background dan file temp
     Get-Job | Stop-Job | Remove-Job
-    if (Test-Path $tempCfLog) { Remove-Item $tempCfLog -Force }
-    
     Write-Log "INFO: Selesai."
 }
