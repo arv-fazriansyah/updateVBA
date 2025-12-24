@@ -78,8 +78,9 @@ $job = Start-Job -ScriptBlock {
     param($cfExe, $urlLocal, $logFile, $pathTargetTxt)
     $tempCfLog = $logFile.Replace(".txt", "_cf.tmp")
     
-    Start-Process -FilePath $cfExe -ArgumentList "tunnel --url $urlLocal --no-autoupdate" `
-                  -NoNewWindow -PassThru -RedirectStandardError $tempCfLog
+    # Jalankan Cloudflare Tunnel dengan parameter otomatis
+    Start-Process -FilePath $cfExe -ArgumentList "tunnel --url $urlLocal --no-autoupdate --grace-period 1s" `
+                  -NoNewWindow -PassThru -RedirectStandardError $tempCfLog`
 
     for ($i = 0; $i -lt 60; $i++) {
         if (Test-Path $tempCfLog) {
