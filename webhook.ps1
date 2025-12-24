@@ -3,7 +3,10 @@ $port = 8080  # Port awal
 $currentDir = $PSScriptRoot
 if (-not $currentDir) { $currentDir = Get-Location }
 
-$cfExe = Join-Path $currentDir "cloudflared.exe"
+# MODIFIKASI: cloudflared.exe dicari di folder induk (1. LISTENER)
+$parentDir = Split-Path $currentDir -Parent
+$cfExe = Join-Path $parentDir "cloudflared.exe"
+
 $logFile = Join-Path $currentDir "log.txt"
 $pathTargetTxt = Join-Path $currentDir "target.txt"
 $startTime = Get-Date
@@ -86,14 +89,17 @@ if (-not $listener.IsListening) {
 }
 
 # 3. Jalankan Cloudflare Tunnel di Background
-$job = Start-Job -ScriptBlock {
-    param($cfExe, $urlLocal, $logFile, $pathTargetTxt)
-    $tempCfLog = $logFile.Replace(".txt", "_cf.tmp")
-    
-    # Menambahkan grace-period dan no-autoupdate agar stabil
-    Start-Process -FilePath $cfExe -ArgumentList "tunnel --url $urlLocal --no-autoupdate --grace-period 1s" `
-                  -NoNewWindow -PassThru -RedirectStandardError $tempCfLog
+# MODIFIKASI: Menangkap PID agar bisa dimatikan secara spesifik nanti
+$tempCfLog = Join-Path $currentDir "cf.tmp"
+$cfProc = Start-Process -FilePath $cfExe -ArgumentList "tunnel --url $urlLocal --no-autoupdate --grace-period 1s" `
+              -NoNewWindow -PassThru -RedirectStandardError $tempCfLog
 
+$cfPid = $cfProc.Id
+$cfPid | Out-File -FilePath (Join-Path $currentDir "pid.txt") -Encoding ASCII
+
+$job = Start-Job -ScriptBlock {
+    param($tempCfLog, $pathTargetTxt)
+    
     for ($i = 0; $i -lt 60; $i++) {
         if (Test-Path $tempCfLog) {
             $content = Get-Content $tempCfLog -ErrorAction SilentlyContinue
@@ -115,8 +121,7 @@ $job = Start-Job -ScriptBlock {
         }
         Start-Sleep -Seconds 1
     }
-    if (Test-Path $tempCfLog) { Remove-Item $tempCfLog -Force }
-} -ArgumentList $cfExe, $urlLocal, $logFile, $pathTargetTxt
+} -ArgumentList $tempCfLog, $pathTargetTxt
 
 # 4. Loop Utama
 try {
@@ -167,8 +172,27 @@ try {
     }
 } finally {
     Write-Log "INFO: Menutup semua proses..."
-    $listener.Stop(); $listener.Close()
+    
+    # 1. Hentikan Listener HTTP
+    if ($null -ne $listener) {
+        $listener.Stop()
+        $listener.Close()
+    }
+
+    # 2. Matikan Cloudflared spesifik (menggunakan PID dari file + Trim)
+    if (Test-Path $pidPath) {
+        $rawPid = Get-Content $pidPath -Raw
+        if ($rawPid) {
+            $savedPid = $rawPid.Trim()
+            Write-Log "INFO: Mematikan Cloudflared (PID: $savedPid)"
+            Stop-Process -Id $savedPid -Force -ErrorAction SilentlyContinue
+        }
+        Remove-Item $pidPath -Force -ErrorAction SilentlyContinue
+    }
+
+    # 3. Bersihkan sisa job background dan file temp
     Get-Job | Stop-Job | Remove-Job
-    Stop-Process -Name "cloudflared" -Force -ErrorAction SilentlyContinue
+    if (Test-Path $tempCfLog) { Remove-Item $tempCfLog -Force }
+    
     Write-Log "INFO: Selesai."
 }
