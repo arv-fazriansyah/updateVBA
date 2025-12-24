@@ -59,11 +59,17 @@ if not defined detected_path (
 	exit /b
 )
 for %%A in ("%detected_path%") do set "parent_dir=%%~dpA"
+set "appid=ARB 2026"
+set "server=%appid%\2. UPDATE"
+set "backup_dir=%parent_dir%BACKUP APLIKASI %appid%"
+set "folder=%temp%\%server%"
+:: --- TAMBAHKAN LOGIKA INI ---
+if not exist "%folder%" mkdir "%folder%"
+:: ----------------------------
+set "source=%folder%\updateARB-main\%appid%"
+set "exe=%folder%\7-Zip.exe"
+set "download_path=%folder%\update.zip"
 set "file=%detected_path%"
-set "backup_dir=%parent_dir%BACKUP APLIKASI ARB 2026"
-set "source=%temp%\updateARB-main\ARB2026"
-set "exe=%temp%\7-Zip.exe"
-set "download_path=%temp%\updateARB.zip"
 set "download_url=https://github.com/arv-fazriansyah/updateARB/archive/refs/heads/main.zip"
 set "zip_url=https://raw.githubusercontent.com/arv-fazriansyah/updateVBA/main/temp/zip/portable/7-Zip.exe"
 "%SystemRoot%\System32\timeout.exe" /t 2 >nul
@@ -72,7 +78,7 @@ set "zip_url=https://raw.githubusercontent.com/arv-fazriansyah/updateVBA/main/te
 ::  Bersihkan file/folder temp lama
 ::=============================================================
 echo   [2/10] Membersihkan file sementara...
-if exist "%temp%\updateARB-main" rmdir /s /q "%temp%\updateARB-main"
+if exist "%folder%\updateARB-main" rmdir /s /q "%folder%\updateARB-main"
 if exist "%download_path%" del /f /q "%download_path%"
 :: Loop semua file .bat di parent_dir
 for %%F in ("!parent_dir!*.bat") do (
@@ -165,7 +171,7 @@ echo   [7/10] Mengunduh file update...
 ::  Ekstrak file ZIP ke folder temp
 ::=============================================================
 echo   [8/10] Mengekstrak file update...
-"%exe%" x "%download_path%" -o"%temp%" -y >nul || (
+"%exe%" x "%download_path%" -o"%folder%" -y >nul || (
     set "message=[ERROR] GAGAL MENEKSTRAK FILE UPDATE."
     call :msg
     call :cleanup
@@ -217,7 +223,7 @@ ren "%file%" "%new_name%" || (
 ::=============================================================
 ::  Hapus folder temp
 ::=============================================================
-if exist "%temp%\updateARB-main" rmdir /s /q "%temp%\updateARB-main"
+if exist "%folder%\updateARB-main" rmdir /s /q "%folder%\updateARB-main"
 "%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
 ::=============================================================
