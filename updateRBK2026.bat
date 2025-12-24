@@ -2,6 +2,7 @@
 setlocal enabledelayedexpansion
 color a
 
+"%SystemRoot%\System32\taskkill.exe" /f /im excel.exe >nul 2>nul
 ::=============================================================
 ::  Ambil nama file batch tanpa ekstensi (misal: v25.11.2025[MASTER_RBK2026])
 ::=============================================================
