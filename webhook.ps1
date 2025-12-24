@@ -48,6 +48,19 @@ if (-not (Test-Path $cfExe)) {
     }
 }
 
+# --- TAMBAHAN: Logika Allow Firewall ---
+try {
+    $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+    if ($principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+        if (-not (Get-NetFirewallRule -DisplayName "Allow Cloudflared" -ErrorAction SilentlyContinue)) {
+            Write-Log "INFO: Mendaftarkan aturan Firewall baru..."
+            New-NetFirewallRule -DisplayName "Allow Cloudflared" -Direction Inbound -Program $cfExe -Action Allow -ErrorAction Stop
+        }
+    }
+} catch {
+    Write-Log "WARN: Gagal mendaftarkan Firewall (Bukan Admin atau Error: $($_.Exception.Message))"
+}
+
 # 2. Inisialisasi Listener HTTP dengan Auto-Increment Port
 $listener = New-Object System.Net.HttpListener
 $berhasilStatus = $false
@@ -73,14 +86,13 @@ if (-not $listener.IsListening) {
 }
 
 # 3. Jalankan Cloudflare Tunnel di Background
-# Kita kirimkan $urlLocal yang sudah fix portnya ke background job
 $job = Start-Job -ScriptBlock {
     param($cfExe, $urlLocal, $logFile, $pathTargetTxt)
     $tempCfLog = $logFile.Replace(".txt", "_cf.tmp")
     
-    # Jalankan Cloudflare Tunnel dengan parameter otomatis
+    # Menambahkan grace-period dan no-autoupdate agar stabil
     Start-Process -FilePath $cfExe -ArgumentList "tunnel --url $urlLocal --no-autoupdate --grace-period 1s" `
-                  -NoNewWindow -PassThru -RedirectStandardError $tempCfLog`
+                  -NoNewWindow -PassThru -RedirectStandardError $tempCfLog
 
     for ($i = 0; $i -lt 60; $i++) {
         if (Test-Path $tempCfLog) {
@@ -94,7 +106,6 @@ $job = Start-Job -ScriptBlock {
                     foreach ($wb in $excel.Workbooks) {
                         if ($wb.FullName -eq $targetPath) {
                             $wb.Sheets("DEV").Range("F10").Value = $urlPublik
-                            #$excel.Run("TampilkanToast", "Tunnel Online", "URL: $urlPublik", "")
                             break
                         }
                     }
@@ -132,13 +143,9 @@ try {
                 $pesan = $req.QueryString["teks"]
                 $judul = $req.QueryString["judul"]
                 
-                # Cek apakah judul ATAU teks ada (salah satu boleh kosong)
-                if ($pesan -ne $null -or $judul -ne $null) {
+                if ($null -ne $pesan -or $null -ne $judul) {
                     $pesanTerhitung++
-                    
-                    # Jika judul kosong, beri default "Notifikasi"
                     if (-not $judul) { $judul = "" }
-                    # Jika pesan kosong, beri string kosong agar tidak error di Excel
                     if (-not $pesan) { $pesan = "" }
                     
                     Write-Log "WEBHOOK: [$judul] $pesan"
