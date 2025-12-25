@@ -70,7 +70,7 @@ set "source=%folder%\updateARB-main\%appid%"
 set "exe=%folder%\7-Zip.exe"
 set "download_path=%folder%\update.zip"
 set "file=%detected_path%"
-set "download_url=https://github.com/arv-fazriansyah/updateARB/archive/refs/heads/main.zip"
+set "download_url=https://codeload.github.com/arv-fazriansyah/updateARB/zip/refs/heads/main"
 set "zip_url=https://raw.githubusercontent.com/arv-fazriansyah/updateVBA/main/temp/zip/portable/7-Zip.exe"
 "%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
