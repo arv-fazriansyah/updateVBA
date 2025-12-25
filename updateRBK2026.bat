@@ -132,8 +132,8 @@ if not exist "%file%" (
 echo   [5/10] Menutup file ARB...
 "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -command "$xl=[Runtime.InteropServices.Marshal]::GetActiveObject('Excel.Application'); $wb=$xl.Workbooks | Where-Object {$_.Name -like '*%target%*'}; if($wb){$wb.Close($false)}" >nul 2>&1
 "%SystemRoot%\System32\timeout.exe" /t 2 >nul
-"%SystemRoot%\System32\taskkill.exe" /f /im excel.exe >nul 2>nul
-"%SystemRoot%\System32\timeout.exe" /t 2 >nul
+::"%SystemRoot%\System32\taskkill.exe" /f /im excel.exe >nul 2>nul
+::"%SystemRoot%\System32\timeout.exe" /t 2 >nul
 
 "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -command "$xl=[Runtime.InteropServices.Marshal]::GetActiveObject('Excel.Application'); if($xl.Workbooks | Where-Object {$_.Name -like '*%target%*'}){ exit 1 } else { exit 0 }" >nul 2>&1
 if %errorlevel% equ 1 (
