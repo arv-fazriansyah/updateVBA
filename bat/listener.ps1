@@ -1,73 +1,80 @@
-$currentDir = $PSScriptRoot
-if (-not $currentDir) { $currentDir = Get-Location }
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-# Mengambil nama folder terakhir sebagai ID
+$currentDir = if ($PSScriptRoot) { $PSScriptRoot } else { Get-Location }
 $id = Split-Path $currentDir -Leaf
-$path = Join-Path $currentDir "target.txt"
+$targetFile = [System.IO.Path]::Combine($currentDir, "target.txt")
+$logFile = [System.IO.Path]::Combine($currentDir, "log.txt")
+$wsUrl = "wss://ntfy.sh/arb2026-$id/ws"
 
-# Setting ntfy menggunakan ID sebagai identitas WebSocket
-$wsUrl = "wss://ntfy.sh/$id/ws"
+$utf8 = [System.Text.Encoding]::UTF8
+$global:xls = $null
 
-Write-Host "--- LISTENER START ---"
+function Write-Log {
+    param($entry)
+    $msg = "[{0}] $entry" -f (Get-Date -Format "HH:mm:ss")
+    Write-Host $msg
+    try { [System.IO.File]::AppendAllText($logFile, $msg + [System.Environment]::NewLine) } catch {}
+}
 
-$ws = New-Object System.Net.WebSockets.ClientWebSocket
-$token = [System.Threading.CancellationToken]::None
-$uri = New-Object System.Uri($wsUrl)
-
-try {
-    $ws.ConnectAsync($uri, $token).Wait()
-    
-    if ($ws.State -eq "Open") {
-        Write-Host "CONNECTED TO ID: $id"
+function Send-ToExcel {
+    param($judul, $pesan)
+    try {
+        if ($null -eq $global:xls) {
+            $global:xls = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
+        }
+        $path = [System.IO.File]::ReadAllText($targetFile).Trim()
+        $fileName = [System.IO.Path]::GetFileName($path)
+        $wb = $global:xls.Workbooks.Item($fileName)
         
-        # --- KIRIM NOTIFIKASI SAAT BERHASIL KONEK ---
-        try {
-            if (Test-Path $path) {
-                $targetPath = (Get-Content $path -Raw).Trim()
-                $xls = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
-                foreach ($wb in $xls.Workbooks) {
-                    if ($wb.FullName -eq $targetPath) { 
-                        $xls.Run("TampilkanToast", "Sistem", "Listener Berhasil Terhubung!", "") 
-                    }
-                }
-            }
-        } catch { } 
-        # --------------------------------------------
+        if ($wb.FullName -eq $path) {
+            # FIX: Gunakan array objek eksplisit dan panggil Run melalui InvokeMember agar tidak 'ambiguous'
+            $args = [object[]]@($judul, $pesan, "")
+            $null = $global:xls.GetType().InvokeMember("Run", [System.Reflection.BindingFlags]::InvokeMethod, $null, $global:xls, @("TampilkanToast") + $args)
+        }
+    } catch { $global:xls = $null }
+}
 
+Write-Log "--- HYPER LISTENER READY ---"
+
+while ($true) {
+    $ws = New-Object System.Net.WebSockets.ClientWebSocket
+    $ws.Options.KeepAliveInterval = [TimeSpan]::FromSeconds(30)
+    $cts = New-Object System.Threading.CancellationTokenSource
+    
+    try {
+        $uri = New-Object System.Uri($wsUrl)
+        [void]$ws.ConnectAsync($uri, $cts.Token).GetAwaiter().GetResult()
+        Write-Log "Connected to $id"
+        
+        # Kirim notif koneksi berhasil (Opsional)
+        Send-ToExcel "Sistem" "Listener Berhasil Terhubung"
+
+        $buffer = New-Object Byte[] 8192 # Buffer lebih besar
+        
         while ($ws.State -eq "Open") {
-            $buf = New-Object Byte[] 1024
-            $seg = New-Object ArraySegment[Byte] @(,$buf)
-            $res = $ws.ReceiveAsync($seg, $token).Result
+            $segment = New-Object ArraySegment[Byte] @(,$buffer)
+            $res = $ws.ReceiveAsync($segment, $cts.Token).GetAwaiter().GetResult()
             
+            if ($res.MessageType -eq "Close") { break }
+
             if ($res.Count -gt 0) {
-                $rawData = [System.Text.Encoding]::UTF8.GetString($buf, 0, $res.Count)
-                $data = $rawData | ConvertFrom-Json
-                
-                if ($data.event -eq "message") {
-                    Write-Host "Pesan: $($data.message)"
+                $raw = $utf8.GetString($buffer, 0, $res.Count)
+                if ($raw.Contains('"event":"message"')) {
+                    $data = $raw | ConvertFrom-Json
+                    Write-Log "Pesan Masuk: $($data.message)"
                     
-                    try {
-                        if (Test-Path $path) {
-                            $targetPath = (Get-Content $path -Raw).Trim()
-                            $xls = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
-                            
-                            foreach ($wb in $xls.Workbooks) {
-                                if ($wb.FullName -eq $targetPath) { 
-                                    $judul = if ($data.title) { $data.title } else { "Notif" }
-                                    $xls.Run("TampilkanToast", $judul, $data.message, "") 
-                                    Write-Host "Berhasil kirim ke Excel"
-                                }
-                            }
-                        }
-                    } catch { 
-                        Write-Host "Excel sibuk atau tidak ditemukan" 
-                    }
+                    # Jalankan tanpa thread baru untuk stabilitas COM
+                    Send-ToExcel $data.title $data.message
                 }
             }
         }
+    } catch {
+        $ex = $_.Exception
+        while ($ex.InnerException) { $ex = $ex.InnerException }
+        if ($ex.Message -notmatch "closed") { Write-Log "Status: $($ex.Message)" }
+    } finally {
+        if ($ws) { $ws.Dispose() }
+        if ($cts) { $cts.Dispose() }
+        Start-Sleep -Seconds 1
     }
-} catch {
-    Write-Host "Error: $($_.Exception.Message)"
-} finally {
-    if ($ws) { $ws.Dispose() }
 }
