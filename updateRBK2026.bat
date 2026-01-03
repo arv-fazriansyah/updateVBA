@@ -47,6 +47,7 @@ set "detected_path="
 for /f "delims=" %%i in ('%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe -command "$xl=[Runtime.InteropServices.Marshal]::GetActiveObject('Excel.Application'); $xl.Workbooks | Where-Object {$_.Name -like '*%target%*'} | Select-Object -ExpandProperty FullName" 2^>nul') do (
     set "detected_path=%%i"
 )
+"%SystemRoot%\System32\timeout.exe" /t 3 >nul
 if not defined detected_path (
     for %%F in ("%~dp0*%target%*.xlsb") do (
         set "detected_path=%%~fF"
