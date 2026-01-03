@@ -58,6 +58,7 @@ if not defined detected_path (
     call :cleanup
 	exit /b
 )
+echo   [OK] PATH: %detected_path%
 for %%A in ("%detected_path%") do set "parent_dir=%%~dpA"
 set "appid=ARB 2026"
 set "server=%appid%\2. UPDATE"
