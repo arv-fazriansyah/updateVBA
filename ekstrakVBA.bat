@@ -3,7 +3,7 @@ setlocal EnableExtensions EnableDelayedExpansion
 title EKSTRAK VBA
 
 set "ZIP=7-Zip.exe"
-set "OUT=EktraksVBA"
+set "OUT=Github"
 set "ZIPURL=https://github.com/arv-fazriansyah/updateVBA/raw/main/temp/zip/portable/7-Zip.exe"
 
 :: =====================================================
