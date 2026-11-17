@@ -41,14 +41,20 @@ def extract_excel_components(excel_path: str, output_dir: str):
         print(f"\n[ERROR] Gagal mengekstrak komponen Excel: {e}")
         sys.exit(1)
 
-def find_excel_files() -> list:
-    """Mencari file Excel (.xlsb / .xlsm) HANYA di dalam folder direktori saat ini (tempat .exe/.py berada)."""
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    
+def get_running_dir() -> str:
+    """Mendapatkan direktori sebenarnya dari file .exe atau script .py yang sedang dieksekusi."""
+    if getattr(sys, 'frozen', False):
+        # Jika dijalankan sebagai file compiled .exe PyInstaller
+        return os.path.dirname(os.path.abspath(sys.executable))
+    else:
+        # Jika dijalankan via interpreter python script.py
+        return os.path.dirname(os.path.abspath(__file__))
+
+def find_excel_files(search_dir: str) -> list:
+    """Mencari file Excel (.xlsb / .xlsm) HANYA di dalam folder direktori aktif."""
     found_files = []
-    if os.path.exists(current_dir):
-        for root, dirs, files in os.walk(current_dir):
-            # Abaikan folder build, dist, git, backup, dan target folder ARB
+    if os.path.exists(search_dir):
+        for root, dirs, files in os.walk(search_dir):
             if any(exc in root.lower() for exc in ['.git', 'build', 'dist', 'backup', 'arb 2027']):
                 continue
             for f in files:
@@ -59,7 +65,6 @@ def find_excel_files() -> list:
                         "full_path": full_path
                     })
                     
-    # Hilangkan duplikat
     unique_files = {}
     for ef in found_files:
         unique_files[ef['full_path']] = ef
@@ -67,11 +72,11 @@ def find_excel_files() -> list:
     return list(unique_files.values())
 
 def main():
-    current_dir = os.path.dirname(os.path.abspath(__file__))
+    current_dir = get_running_dir()
     print(f"=== EKSTRAKTOR EXCEL LOKAL ({CONFIG['TARGET_YEAR']}) ===")
     print(f"Memindai file Excel di folder: {current_dir}")
     
-    excel_files = find_excel_files()
+    excel_files = find_excel_files(current_dir)
     
     if not excel_files:
         print(f"[ERROR] Tidak ditemukan file Excel (.xlsb/.xlsm) di folder ini ({current_dir})!")
@@ -100,7 +105,6 @@ def main():
         except ValueError:
             print("[ERROR] Masukkan angka yang valid.")
             
-    # Direktori tujuan: folder "ARB 2027" di direktori tempat script/exe berada
     output_dir = os.path.join(current_dir, f"ARB {CONFIG['TARGET_YEAR']}")
     
     extract_excel_components(selected_file['full_path'], output_dir)
