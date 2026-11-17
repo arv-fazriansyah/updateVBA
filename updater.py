@@ -100,18 +100,15 @@ def run_update(github_zip_url: str, target_path_input: str, version_arg: str = N
             app = win32.Dispatch("Excel.Application")
             target_abs = os.path.abspath(target_file).lower()
             
-            # Kumpulkan workbook yang cocok terlebih dahulu untuk menghindari disconnect iterator
-            matching_workbooks = []
+            # Tutup langsung tanpa memanggil properti .Name setelah ditutup untuk menghindari COM disconnection error
             for wb in app.Workbooks:
                 try:
                     if os.path.abspath(wb.FullName).lower() == target_abs:
-                        matching_workbooks.append(wb)
+                        wb.Close(SaveChanges=False)
+                        print(f"      File target berhasil ditutup secara aman via Excel COM.")
+                        break
                 except Exception:
                     continue
-                    
-            for wb in matching_workbooks:
-                wb.Close(SaveChanges=False)
-                print(f"      File berhasil ditutup secara aman via Excel Application COM.")
         except Exception as e:
             print(f"      [Info COM] {e}")
             
