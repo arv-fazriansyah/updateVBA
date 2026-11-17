@@ -99,7 +99,7 @@ def run_update(github_zip_url: str, target_path_input: str, version_arg: str = N
             pythoncom.CoInitialize()
             app = win32.Dispatch("Excel.Application")
             
-            # PENTING: Pulihkan pengaturan Excel yang terkunci/diubah oleh VBA Workbook_Open (ScreenUpdating, Visible, dll)
+            # Reset paksa seluruh settingan Excel agar tidak blank
             try:
                 app.Visible = True
                 app.ScreenUpdating = True
@@ -120,18 +120,20 @@ def run_update(github_zip_url: str, target_path_input: str, version_arg: str = N
                 except Exception:
                     continue
                     
-            # Pastikan window/sheet dari file yang tersisa di-visible-kan dan di-activate kembali agar tidak blank
+            # Pastikan setiap workbook yang tersisa di-make visible dan aktif kembali
             for wb in app.Workbooks:
                 try:
                     wb.Windows(1).Visible = True
+                    wb.Activate()
                 except Exception:
                     pass
                     
-            if app.Workbooks.Count > 0:
-                try:
-                    app.Workbooks(1).Activate()
-                except Exception:
-                    pass
+            # Paksa Excel mengaktifkan kembali jendela aplikasi utama
+            try:
+                app.Interactive = True
+            except Exception:
+                pass
+                
         except Exception as e:
             print(f"      [Info COM] {e}")
             
