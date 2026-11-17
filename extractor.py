@@ -6,7 +6,7 @@ from config import CONFIG
 
 def extract_excel_components(excel_path: str, output_dir: str):
     """
-    Mengekstrak HANYA 'xl/vbaProject.bin' (serta menjaga struktur foldernya) 
+    Mengekstrak HANYA folder 'xl/vbaProject.bin' dan folder 'customUI/' 
     dari dalam file .xlsb/.xlsm ke dalam folder tujuan.
     """
     if not os.path.exists(excel_path):
@@ -16,23 +16,22 @@ def extract_excel_components(excel_path: str, output_dir: str):
     try:
         os.makedirs(output_dir, exist_ok=True)
         
-        extracted = False
+        extracted_count = 0
         with zipfile.ZipFile(excel_path, 'r') as zf:
             for member in zf.namelist():
                 norm_member = member.replace('\\', '/')
-                # Hanya ambil file vbaProject.bin di dalam folder xl/
-                if norm_member.lower() == 'xl/vbaproject.bin':
+                # Ekstrak vbaProject.bin ATAU seluruh isi folder customUI/
+                if norm_member.lower() == 'xl/vbaproject.bin' or norm_member.lower().startswith('customui/'):
                     zf.extract(member, output_dir)
-                    extracted = True
-                    break
+                    extracted_count += 1
                     
-        if extracted:
-            print(f"\n[OK] Berhasil mengekstrak xl/vbaProject.bin ke folder: {output_dir}")
+        if extracted_count > 0:
+            print(f"\n[OK] Berhasil mengekstrak komponen (vbaProject.bin & customUI) ke folder: {output_dir}")
         else:
-            print(f"\n[WARNING] File vbaProject.bin tidak ditemukan di dalam file Excel tersebut.")
+            print(f"\n[WARNING] Komponen vbaProject.bin atau customUI tidak ditemukan di dalam file Excel tersebut.")
         
     except Exception as e:
-        print(f"\n[ERROR] Gagal mengekstrak vbaProject.bin: {e}")
+        print(f"\n[ERROR] Gagal mengekstrak komponen: {e}")
         sys.exit(1)
 
 def get_running_dir() -> str:
@@ -74,7 +73,7 @@ def main():
         sys.exit(1)
         
     print("\n" + "=" * 60)
-    print(" PILIH FILE EXCEL YANG AKAN DIEKSTRAK (vbaProject.bin):")
+    print(" PILIH FILE EXCEL YANG AKAN DIEKSTRAK (vbaProject.bin & customUI):")
     print("=" * 60)
     for idx, ef in enumerate(excel_files):
         print(f"  [{idx + 1}] {ef['name']}")
