@@ -4,19 +4,17 @@ import zipfile
 import urllib.request
 import tempfile
 import shutil
-import pythoncom
-import win32com.client as win32
 import threading
 import queue
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox
 from config import CONFIG
 
 class UpdaterGUI:
     def __init__(self, root):
         self.root = root
         self.root.title(f"Updater Aplikasi ARB {CONFIG['TARGET_YEAR']}")
-        self.root.geometry("620x420")
+        self.root.geometry("640x420")
         self.root.resizable(False, False)
 
         self.log_queue = queue.Queue()
@@ -93,61 +91,33 @@ class UpdaterGUI:
 
     def _run_update(self):
         target_file = self.target_file
-        target_dir = os.path.dirname(target_file)
+        source_dir = os.path.dirname(target_file)
         file_name = os.path.basename(target_file)
         target_year = CONFIG["TARGET_YEAR"]
-        backup_dir = os.path.join(target_dir, CONFIG["BACKUP_FOLDER_NAME"])
+
+        old_dir = os.path.join(source_dir, CONFIG["OLD_VERSION_FOLDER_NAME"])
+        new_dir = os.path.join(source_dir, CONFIG["NEW_VERSION_FOLDER_NAME"])
+        old_file = os.path.join(old_dir, file_name)
+        new_file = os.path.join(new_dir, file_name)
+
         temp_dir = tempfile.mkdtemp()
-        backup_file_target = os.path.join(backup_dir, file_name)
 
         try:
-            # Step 1: Version + close Excel
-            self.log("\n[1/4] Mengecek versi & menutup file Excel yang sedang berjalan...")
+            # Step 1: Cek versi terbaru
+            self.log("\n[1/4] Mengecek versi terbaru...")
             version = get_latest_version_from_github(self.log)
             self.log(f"      Versi Target : {version}")
 
-            try:
-                pythoncom.CoInitialize()
-                app = win32.Dispatch("Excel.Application")
-                try:
-                    app.Visible = True
-                    app.Interactive = True
-                    app.ScreenUpdating = True
-                    app.DisplayAlerts = True
-                    app.EnableEvents = True
-                    app.Calculation = -4105
-                except Exception:
-                    pass
+            # Step 2: Salin file ke 2 folder (versi lama & versi terbaru)
+            self.log("\n[2/4] Menyalin file ke folder backup & versi terbaru...")
+            os.makedirs(old_dir, exist_ok=True)
+            os.makedirs(new_dir, exist_ok=True)
+            shutil.copy2(target_file, old_file)
+            shutil.copy2(target_file, new_file)
+            self.log(f"      Versi lama  -> {CONFIG['OLD_VERSION_FOLDER_NAME']}")
+            self.log(f"      Versi baru  -> {CONFIG['NEW_VERSION_FOLDER_NAME']}")
 
-                target_abs = os.path.abspath(target_file).lower()
-                for wb in app.Workbooks:
-                    try:
-                        if os.path.abspath(wb.FullName).lower() == target_abs:
-                            wb.Close(SaveChanges=False)
-                            self.log("      File target berhasil ditutup via Excel COM.")
-                            break
-                    except Exception:
-                        continue
-
-                for wb in app.Workbooks:
-                    try:
-                        wb.Windows(1).Visible = True
-                        wb.Activate()
-                        new_win = wb.NewWindow()
-                        if wb.Windows.Count > 1:
-                            wb.Windows(1).Close()
-                    except Exception:
-                        pass
-            except Exception as e:
-                self.log(f"      [Info COM] {e}")
-
-            # Step 2: Backup
-            self.log(f"\n[2/4] Membuat backup ke folder '{CONFIG['BACKUP_FOLDER_NAME']}'...")
-            os.makedirs(backup_dir, exist_ok=True)
-            shutil.copy2(target_file, backup_file_target)
-            self.log("      Backup selesai.")
-
-            # Step 3: Download + extract
+            # Step 3: Unduh & ekstrak paket update dari GitHub
             self.log("\n[3/4] Mengunduh & mengekstrak pembaruan dari GitHub...")
             github_zip_url = CONFIG["GITHUB_ZIP_URL"]
             zip_path = os.path.join(temp_dir, "update.zip")
@@ -172,11 +142,11 @@ class UpdaterGUI:
                     source_update = extract_dir
             self.log(f"      Sumber update: {target_folder_name}")
 
-            # Step 4: Inject
-            self.log("\n[4/4] Menyuntikkan pembaruan & merapikan file...")
-            old_xlsb_dir = os.path.join(temp_dir, "old_xlsb")
-            with zipfile.ZipFile(target_file, 'r') as old_zf:
-                old_zf.extractall(old_xlsb_dir)
+            # Step 4: Suntikkan update ke file di folder VERSI TERBARU
+            self.log("\n[4/4] Menyuntikkan pembaruan ke file di folder versi terbaru...")
+            old_xlsb_dir = os.path.join(temp_dir, "new_xlsb")
+            with zipfile.ZipFile(new_file, 'r') as new_zf:
+                new_zf.extractall(old_xlsb_dir)
 
             for root, dirs, files in os.walk(source_update):
                 for file in files:
@@ -187,44 +157,23 @@ class UpdaterGUI:
                     shutil.copy2(full_path, dest_path)
 
             updated_temp_file = os.path.join(temp_dir, "updated.xlsb")
-            with zipfile.ZipFile(updated_temp_file, 'w', zipfile.ZIP_DEFLATED) as new_zf:
+            with zipfile.ZipFile(updated_temp_file, 'w', zipfile.ZIP_DEFLATED) as out_zf:
                 for root, dirs, files in os.walk(old_xlsb_dir):
                     for file in files:
                         full_path = os.path.join(root, file)
                         arcname = os.path.relpath(full_path, old_xlsb_dir)
-                        new_zf.write(full_path, arcname)
+                        out_zf.write(full_path, arcname)
 
-            shutil.move(updated_temp_file, target_file)
-
-            base_name_only = file_name
-            for prefix in ["[Versi Terbaru]", "v24.", "v25.", "v26.", "v27."]:
-                if prefix in base_name_only:
-                    parts = base_name_only.split("_", 1)
-                    if len(parts) > 1:
-                        base_name_only = parts[1]
-                    break
-
-            new_name = f"{version}_{base_name_only}"
-            new_path = os.path.join(target_dir, new_name)
-            if target_file != new_path:
-                if os.path.exists(new_path):
-                    os.remove(new_path)
-                os.rename(target_file, new_path)
+            shutil.move(updated_temp_file, new_file)
 
             self.log("\n" + "=" * 60)
             self.log(" [OK] UPDATE SELESAI DENGAN SUKSES!")
-            self.log(f" File baru: {new_name}")
+            self.log(f" File versi terbaru: {new_file}")
             self.log("=" * 60)
-            self.root.after(0, lambda: messagebox.showinfo("Sukses", f"Update selesai!\nFile baru: {new_name}"))
+            self.root.after(0, lambda: messagebox.showinfo("Sukses", f"Update selesai!\nFile berhasil disimpan di:\n{new_dir}"))
 
         except Exception as e:
             self.log(f"\n[ERROR] Update gagal: {e}")
-            if os.path.exists(backup_file_target):
-                try:
-                    shutil.copy2(backup_file_target, target_file)
-                    self.log("File dipulihkan dari backup.")
-                except Exception:
-                    pass
             self.root.after(0, lambda: messagebox.showerror("Gagal", f"Update gagal:\n{e}"))
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
