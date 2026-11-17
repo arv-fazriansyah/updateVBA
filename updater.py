@@ -15,14 +15,10 @@ def get_latest_version_from_github() -> str:
         with urllib.request.urlopen(req, timeout=5) as resp:
             ver = resp.read().decode('utf-8').strip()
             if ver:
-                print(f"[OK] Berhasil mendeteksi versi terbaru dari GitHub: {ver}")
                 return ver
     except Exception:
         pass
-    
-    fallback_ver = CONFIG["DEFAULT_VERSION"]
-    print(f"[INFO] Menggunakan tag versi default: {fallback_ver}")
-    return fallback_ver
+    return CONFIG["DEFAULT_VERSION"]
 
 def get_running_dir() -> str:
     """Mendapatkan direktori sebenarnya dari file .exe atau script .py yang sedang dieksekusi."""
@@ -51,57 +47,52 @@ def find_target_excel(arg_input: str = None) -> str:
     found_files = [f for f in list(set(found_files)) if "BACKUP" not in f and not f.endswith('.bak')]
     
     if not found_files:
-        print(f"[ERROR] Tidak ditemukan file aplikasi Excel (.xlsb/.xlsm) di folder ini ({current_dir})!")
-        print("Tip: Seret (Drag) file Excel Anda dan lepaskan di atas ikon updater.exe")
+        print(f"[ERROR] Tidak ditemukan file Excel (.xlsb/.xlsm) di folder ini!")
+        print(f"        Lokasi: {current_dir}")
         return None
         
-    print("\n" + "=" * 60)
-    print(" DAFTAR FILE APLIKASI EXCEL YANG DITEMUKAN:")
-    print("=" * 60)
+    print("\n" + "─" * 50)
+    print(" PILIH FILE EXCEL YANG AKAN DI-UPDATE:")
+    print("─" * 50)
     for idx, ff in enumerate(found_files):
-        print(f"  [{idx + 1}] {ff}")
-    print("=" * 60)
+        print(f"  [{idx + 1}] {os.path.basename(ff)}")
+    print("─" * 50)
     
     while True:
-        choice = input(f"Pilih nomor file yang ingin di-update [1-{len(found_files)}] (atau tekan Ctrl+C untuk batal): ").strip()
+        choice = input(f"Pilih nomor [1-{len(found_files)}] (Ctrl+C untuk batal): ").strip()
         try:
             sel_idx = int(choice) - 1
             if 0 <= sel_idx < len(found_files):
                 selected = found_files[sel_idx]
-                print(f"\n[OK] Anda memilih: {selected}\n")
+                print(f"\n[OK] Dipilih: {os.path.basename(selected)}\n")
                 return selected
             else:
-                print("[ERROR] Nomor pilihan tidak valid. Silakan coba lagi.")
+                print("[ERROR] Nomor tidak valid. Silakan coba lagi.")
         except ValueError:
             print("[ERROR] Masukkan angka yang valid.")
 
 def run_update(github_zip_url: str, target_path_input: str, version_arg: str = None):
-    print(f"=== PROGRAM PEMBARUAN APLIKASI (ARB {CONFIG['TARGET_YEAR']}) ===")
+    print(f"=== UPDATER APLIKASI ARB {CONFIG['TARGET_YEAR']} ===")
     
     version = version_arg if version_arg else get_latest_version_from_github()
-    print(f"Versi Target Update: {version}")
+    print(f"Versi Target : {version}")
     
     target_file = find_target_excel(target_path_input)
     if not target_file:
         sys.exit(1)
         
-    print(f"Target terpilih: {target_file}")
     target_dir = os.path.dirname(target_file)
     file_name = os.path.basename(target_file)
-    
     target_year = CONFIG["TARGET_YEAR"]
     backup_dir = os.path.join(target_dir, CONFIG["BACKUP_FOLDER_NAME"])
     
     temp_dir = tempfile.mkdtemp()
+    backup_file_target = os.path.join(backup_dir, file_name)
     
     try:
-        print("\n[1/10] Menyiapkan update manager...")
-        print("[2/10] Membersihkan file sementara...")
-        
-        print("[3/10] Mengecek koneksi internet...")
+        print("\n[1/4] Memeriksa koneksi & menutup file Excel...")
         urllib.request.urlopen("https://google.com", timeout=5)
         
-        print(f"[5/10] Menutup file {file_name} (File Excel lain aman)...")
         try:
             pythoncom.CoInitialize()
             app = win32.Dispatch("Excel.Application")
@@ -112,17 +103,14 @@ def run_update(github_zip_url: str, target_path_input: str, version_arg: str = N
         except Exception:
             pass
             
-        print(f"[6/10] Membuat backup file ke folder: {CONFIG['BACKUP_FOLDER_NAME']}...")
+        print(f"[2/4] Membuat backup ke folder '{CONFIG['BACKUP_FOLDER_NAME']}'...")
         os.makedirs(backup_dir, exist_ok=True)
-        # Langsung salin file asli ke folder backup
-        backup_file_target = os.path.join(backup_dir, file_name)
         shutil.copy2(target_file, backup_file_target)
         
-        print("[7/10] Mengunduh paket update dari GitHub...")
+        print("[3/4] Mengunduh & mengekstrak pembaruan dari GitHub...")
         zip_path = os.path.join(temp_dir, "update.zip")
         urllib.request.urlretrieve(github_zip_url, zip_path)
         
-        print("[8/10] Mengekstrak pembaruan...")
         extract_dir = os.path.join(temp_dir, "extracted")
         with zipfile.ZipFile(zip_path, 'r') as zf:
             zf.extractall(extract_dir)
@@ -143,9 +131,7 @@ def run_update(github_zip_url: str, target_path_input: str, version_arg: str = N
             if not source_update:
                 source_update = extract_dir
 
-        print(f"Sumber pembaruan diambil dari folder khusus: {target_folder_name}")
-
-        print("[9/10] Menyuntikkan pembaruan sistem ke file Excel...")
+        print("[4/4] Menyuntikkan pembaruan & merapikan file...")
         old_xlsb_dir = os.path.join(temp_dir, "old_xlsb")
         with zipfile.ZipFile(target_file, 'r') as old_zf:
             old_zf.extractall(old_xlsb_dir)
@@ -168,7 +154,6 @@ def run_update(github_zip_url: str, target_path_input: str, version_arg: str = N
                     
         shutil.move(updated_temp_file, target_file)
         
-        print("[10/10] Finishing & Clean up...")
         base_name_only = file_name
         for prefix in ["[Versi Terbaru]", "v24.", "v25.", "v26.", "v27."]:
             if prefix in base_name_only:
@@ -181,12 +166,11 @@ def run_update(github_zip_url: str, target_path_input: str, version_arg: str = N
         if target_file != new_path:
             if os.path.exists(new_path): os.remove(new_path)
             os.rename(target_file, new_path)
-            print(f"  File direname menjadi: {new_name}")
             
-        print("=" * 50)
-        print("[OK] PROSES UPDATE SELESAI DENGAN SUKSES!")
-        print(f"File diperbarui menjadi: {new_name}")
-        print("=" * 50)
+        print("\n" + "═" * 50)
+        print(" [OK] UPDATE SELESAI DENGAN SUKSES!")
+        print(f" File baru: {new_name}")
+        print("═" * 50)
         
         if sys.stdin.isatty():
             input("\nTekan Enter untuk keluar...")
@@ -195,7 +179,7 @@ def run_update(github_zip_url: str, target_path_input: str, version_arg: str = N
         print(f"\n[ERROR] Update gagal: {e}")
         if os.path.exists(backup_file_target):
             shutil.copy2(backup_file_target, target_file)
-            print("Dipulihkan kembali dari file backup.")
+            print("File dipulihkan dari backup.")
         if sys.stdin.isatty():
             input("\nTekan Enter untuk keluar...")
         sys.exit(1)
