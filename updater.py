@@ -4,12 +4,11 @@ import zipfile
 import urllib.request
 import tempfile
 import shutil
-import datetime
 import pythoncom
 import win32com.client as win32
 
 def get_latest_version_from_github() -> str:
-    """Mengambil string versi terbaru dari file version.txt di repository GitHub, atau generate otomatis berdasarkan tanggal hari ini."""
+    """Mengambil string versi terbaru dari file version.txt di repository GitHub."""
     version_urls = [
         "https://raw.githubusercontent.com/arv-fazriansyah/updateARB/refs/heads/main/version.txt",
         "https://raw.githubusercontent.com/arv-fazriansyah/updateVBA/refs/heads/main/version.txt"
@@ -25,10 +24,10 @@ def get_latest_version_from_github() -> str:
         except Exception:
             continue
     
-    # [Ide Cerdas] Jika gagal terhubung ke GitHub, gunakan Tanggal Hari Ini (Format: vDD.MM.YYYY)
-    today_ver = datetime.datetime.now().strftime("v%d.%m.%Y")
-    print(f"[INFO] Menggunakan versi dinamis berdasarkan tanggal hari ini: {today_ver}")
-    return today_ver
+    # Jika gagal terhubung ke GitHub, gunakan tag "[Versi Terbaru]"
+    fallback_ver = "[Versi Terbaru]"
+    print(f"[WARNING] Gagal mengambil version.txt dari GitHub. Menggunakan tag: {fallback_ver}")
+    return fallback_ver
 
 def find_target_excel(arg_input: str = None) -> str:
     """Mencari file target Excel secara cerdas berdasarkan argumen, drag-and-drop, atau smart scan dengan menu pilihan user."""
@@ -85,7 +84,7 @@ def find_target_excel(arg_input: str = None) -> str:
 def run_update(github_zip_url: str, target_path_input: str, version_arg: str = None):
     print("=== PROGRAM PEMBARUAN APLIKASI (UPDATER) ===")
     
-    # Ambil versi dari argumen, atau GitHub, atau Tanggal Hari Ini sebagai fallback cerdas
+    # Ambil versi dari argumen, atau GitHub, atau gunakan "[Versi Terbaru]" sebagai fallback
     version = version_arg if version_arg else get_latest_version_from_github()
     print(f"Versi Target Update: {version}")
     
@@ -184,7 +183,7 @@ def run_update(github_zip_url: str, target_path_input: str, version_arg: str = N
         
         print("[10/10] Finishing & Clean up...")
         base_name_only = file_name
-        for prefix in ["v24.", "v25.", "v26.", "v27."]:
+        for prefix in ["[Versi Terbaru]", "v24.", "v25.", "v26.", "v27."]:
             if prefix in base_name_only:
                 parts = base_name_only.split("_", 1)
                 if len(parts) > 1: base_name_only = parts[1]
