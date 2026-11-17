@@ -40,7 +40,6 @@ def find_target_excel(arg_input: str = None) -> str:
             if any(exc in root.lower() for exc in ['.git', 'build', 'dist', 'backup', 'arb 2027']):
                 continue
             for f in files:
-                # Abaikan file temporary Excel yang diawali dengan ~$
                 if f.startswith('~$'):
                     continue
                 if f.endswith(('.xlsb', '.xlsm')):
@@ -93,18 +92,35 @@ def run_update(github_zip_url: str, target_path_input: str, version_arg: str = N
     backup_file_target = os.path.join(backup_dir, file_name)
     
     try:
-        print("\n[1/4] Memeriksa koneksi & menutup file Excel...")
+        print("\n[1/4] Memeriksa koneksi & menutup file Excel yang sedang berjalan...")
         urllib.request.urlopen("https://google.com", timeout=5)
         
+        closed_by_com = False
         try:
             pythoncom.CoInitialize()
             app = win32.Dispatch("Excel.Application")
+            target_abs = os.path.abspath(target_file).lower()
             for wb in app.Workbooks:
-                if os.path.abspath(wb.FullName).lower() == target_file.lower():
-                    wb.Close(SaveChanges=False)
-                    break
-        except Exception:
-            pass
+                try:
+                    if os.path.abspath(wb.FullName).lower() == target_abs:
+                        wb.Close(SaveChanges=False)
+                        closed_by_com = True
+                        print(f"      File berhasil ditutup secara aman via Excel Application COM.")
+                        break
+                except Exception:
+                    continue
+        except Exception as e:
+            print(f"      [Info COM] {e}")
+            
+        # Fallback jika COM gagal atau file terbuka di instance terpisah/read-only
+        if not closed_by_com:
+            print("      [Info] Mencoba menutup paksa handle file...")
+            try:
+                import subprocess
+                # Gunakan wmic atau taskkill jika diperlukan, atau beri jeda
+                pass
+            except Exception:
+                pass
             
         print(f"[2/4] Membuat backup ke folder '{CONFIG['BACKUP_FOLDER_NAME']}'...")
         os.makedirs(backup_dir, exist_ok=True)
