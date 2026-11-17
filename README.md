@@ -25,7 +25,6 @@ excel-updater-standalone/
 ├── dist/
 │   └── updater.exe       # Standalone executable (ready for distribution)
 ├── build/                # PyInstaller build cache
-├── backup_local/         # Local backup archive directory
 ├── updater.py            # Main Python update engine source code
 ├── updater.spec          # PyInstaller specification file
 └── README.md             # Project documentation
