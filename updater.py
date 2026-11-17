@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import zipfile
 import urllib.request
 import tempfile
@@ -130,7 +131,6 @@ class UpdaterGUI(ctk.CTk):
             app_dir = os.path.dirname(os.path.abspath(__file__))
 
         new_dir = os.path.join(app_dir, CONFIG["NEW_VERSION_FOLDER_NAME"])
-        new_file = os.path.join(new_dir, file_name)
 
         temp_dir = tempfile.mkdtemp()
 
@@ -139,6 +139,14 @@ class UpdaterGUI(ctk.CTk):
             version = get_latest_version_from_github(self.log)
             self.log(f"      Versi: {version}")
             self.after(0, lambda: self.progress.set(0.33))
+
+            # Bersihkan prefix versi lama agar tidak dobel, lalu pasang versi baru
+            base_name = file_name
+            for pattern in (r"^\[Versi Terbaru\]_", r"^v\d{1,2}\.\d{1,2}\.\d{4}_", r"^v\d{2}\._"):
+                base_name = re.sub(pattern, "", base_name, flags=re.IGNORECASE)
+            final_name = f"{version}_{base_name}"
+            new_file = os.path.join(new_dir, final_name)
+            self.log(f"      Nama hasil: {final_name}")
 
             self.log("[2/3] Salin file ke folder versi terbaru...")
             os.makedirs(new_dir, exist_ok=True)
