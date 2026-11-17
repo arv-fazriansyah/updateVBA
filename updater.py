@@ -15,116 +15,63 @@ ctk.set_default_color_theme("blue")
 class UpdaterGUI(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title(f"Updater Aplikasi ARB {CONFIG['TARGET_YEAR']}")
-        self.geometry("760x560")
+        self.title(f"Updater ARB {CONFIG['TARGET_YEAR']}")
+        self.geometry("480x300")
         self.resizable(False, False)
 
         self.log_queue = queue.Queue()
         self.target_file = None
 
-        # Grid layout
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(4, weight=1)
 
-        # Header card
-        header = ctk.CTkFrame(self, corner_radius=16)
-        header.grid(row=0, column=0, padx=24, pady=(24, 12), sticky="ew")
-        header.grid_columnconfigure(0, weight=1)
-
+        # Judul ringkas
         ctk.CTkLabel(
-            header,
-            text=f"UPDATER APLIKASI ARB {CONFIG['TARGET_YEAR']}",
-            font=ctk.CTkFont(size=22, weight="bold")
-        ).grid(row=0, column=0, sticky="w", padx=24, pady=(18, 4))
+            self,
+            text=f"UPDATER ARB {CONFIG['TARGET_YEAR']}",
+            font=ctk.CTkFont(size=17, weight="bold")
+        ).grid(row=0, column=0, sticky="w", padx=20, pady=(16, 10))
 
-        ctk.CTkLabel(
-            header,
-            text="Pilih file Excel aplikasi, lalu klik Mulai Update",
-            font=ctk.CTkFont(size=13),
-            text_color="gray70"
-        ).grid(row=1, column=0, sticky="w", padx=24, pady=(0, 18))
-
-        # File selection card
-        file_card = ctk.CTkFrame(self, corner_radius=16)
-        file_card.grid(row=1, column=0, padx=24, pady=12, sticky="ew")
-        file_card.grid_columnconfigure(0, weight=1)
-
-        ctk.CTkLabel(
-            file_card,
-            text="FILE EXCEL TARGET",
-            font=ctk.CTkFont(size=12, weight="bold"),
-            text_color="gray70"
-        ).grid(row=0, column=0, columnspan=2, sticky="w", padx=20, pady=(16, 6))
+        # Pilih file
+        file_frame = ctk.CTkFrame(self, corner_radius=10)
+        file_frame.grid(row=1, column=0, padx=20, pady=4, sticky="ew")
+        file_frame.grid_columnconfigure(0, weight=1)
 
         self.file_entry = ctk.CTkEntry(
-            file_card,
-            placeholder_text="Belum ada file dipilih...",
-            height=40,
-            corner_radius=10,
+            file_frame,
+            placeholder_text="Pilih file Excel (.xlsb / .xlsm)...",
+            height=34,
+            corner_radius=8,
             state="disabled"
         )
-        self.file_entry.grid(row=1, column=0, sticky="ew", padx=(20, 8), pady=(0, 18))
+        self.file_entry.grid(row=0, column=0, sticky="ew", padx=(12, 6), pady=10)
 
         self.browse_btn = ctk.CTkButton(
-            file_card,
-            text="Pilih File",
-            width=120,
-            height=40,
-            corner_radius=10,
+            file_frame, text="Pilih", width=70, height=34, corner_radius=8,
             command=self.browse_file
         )
-        self.browse_btn.grid(row=1, column=1, padx=(0, 20), pady=(0, 18))
+        self.browse_btn.grid(row=0, column=1, padx=(0, 12), pady=10)
 
-        # Progress + status card
-        status_card = ctk.CTkFrame(self, corner_radius=16)
-        status_card.grid(row=2, column=0, padx=24, pady=12, sticky="ew")
-        status_card.grid_columnconfigure(0, weight=1)
-
-        self.status_label = ctk.CTkLabel(
-            status_card,
-            text="Siap untuk memulai update",
-            font=ctk.CTkFont(size=13, weight="bold")
-        )
-        self.status_label.grid(row=0, column=0, sticky="w", padx=20, pady=(14, 8))
-
-        self.progress = ctk.CTkProgressBar(status_card, height=10, corner_radius=6)
-        self.progress.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 16))
+        # Progress tipis
+        self.progress = ctk.CTkProgressBar(self, height=6, corner_radius=4)
+        self.progress.grid(row=2, column=0, padx=20, pady=12, sticky="ew")
         self.progress.set(0)
 
-        # Start button
+        # Tombol mulai
         self.start_btn = ctk.CTkButton(
-            self,
-            text="Mulai Update",
-            height=48,
-            corner_radius=12,
-            font=ctk.CTkFont(size=15, weight="bold"),
-            fg_color="#2563EB",
-            hover_color="#1D4ED8",
-            state="disabled",
-            command=self.start_update
+            self, text="Mulai Update", height=38, corner_radius=8,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            state="disabled", command=self.start_update
         )
-        self.start_btn.grid(row=3, column=0, padx=24, pady=(4, 12), sticky="ew")
+        self.start_btn.grid(row=3, column=0, padx=20, pady=(0, 10), sticky="ew")
 
-        # Log card
-        log_card = ctk.CTkFrame(self, corner_radius=16)
-        log_card.grid(row=4, column=0, padx=24, pady=(0, 24), sticky="nsew")
-        log_card.grid_columnconfigure(0, weight=1)
-        log_card.grid_rowconfigure(1, weight=1)
-
-        ctk.CTkLabel(
-            log_card,
-            text="LOG PROSES",
-            font=ctk.CTkFont(size=12, weight="bold"),
-            text_color="gray70"
-        ).grid(row=0, column=0, sticky="w", padx=20, pady=(16, 6))
-
+        # Log ringkas
         self.log_text = ctk.CTkTextbox(
-            log_card,
-            corner_radius=10,
-            font=ctk.CTkFont(family="Consolas", size=11),
+            self, corner_radius=8,
+            font=ctk.CTkFont(family="Consolas", size=10),
             state="disabled"
         )
-        self.log_text.grid(row=1, column=0, sticky="nsew", padx=20, pady=(0, 18))
+        self.log_text.grid(row=4, column=0, padx=20, pady=(0, 16), sticky="nsew")
 
         self.after(100, self.process_queue)
 
@@ -145,7 +92,7 @@ class UpdaterGUI(ctk.CTk):
 
     def browse_file(self):
         path = filedialog.askopenfilename(
-            title="Pilih File Excel Aplikasi",
+            title="Pilih File Excel",
             filetypes=[("Excel Files", "*.xlsb *.xlsm"), ("All Files", "*.*")]
         )
         if path and path.lower().endswith((".xlsb", ".xlsm")):
@@ -155,22 +102,19 @@ class UpdaterGUI(ctk.CTk):
             self.file_entry.insert(0, self.target_file)
             self.file_entry.configure(state="disabled")
             self.start_btn.configure(state="normal")
-            self.status_label.configure(text=f"File siap: {os.path.basename(self.target_file)}")
-            self.log(f"[OK] File dipilih: {self.target_file}")
+            self.log(f"[OK] {os.path.basename(self.target_file)}")
         elif path:
             messagebox.showerror("Error", "File harus berformat .xlsb atau .xlsm")
 
     def start_update(self):
         if not self.target_file:
-            messagebox.showwarning("Peringatan", "Pilih file Excel terlebih dahulu.")
             return
         self.browse_btn.configure(state="disabled")
         self.start_btn.configure(state="disabled")
         self.progress.set(0)
-        self.status_label.configure(text="Memulai proses update...")
-        self.log("\n" + "=" * 60)
-        self.log(" MEMULAI PROSES UPDATE")
-        self.log("=" * 60)
+        self.log_text.configure(state="normal")
+        self.log_text.delete("0.0", "end")
+        self.log_text.configure(state="disabled")
         threading.Thread(target=self._run_update, daemon=True).start()
 
     def _run_update(self):
@@ -187,27 +131,19 @@ class UpdaterGUI(ctk.CTk):
         temp_dir = tempfile.mkdtemp()
 
         try:
-            # Step 1
-            self.after(0, lambda: self.status_label.configure(text="[1/4] Mengecek versi terbaru..."))
-            self.log("\n[1/4] Mengecek versi terbaru...")
+            self.log("[1/4] Cek versi terbaru...")
             version = get_latest_version_from_github(self.log)
-            self.log(f"      Versi Target : {version}")
+            self.log(f"      Versi: {version}")
             self.after(0, lambda: self.progress.set(0.25))
 
-            # Step 2
-            self.after(0, lambda: self.status_label.configure(text="[2/4] Menyalin file ke folder backup & versi terbaru..."))
-            self.log("\n[2/4] Menyalin file ke folder backup & versi terbaru...")
+            self.log("[2/4] Salin file ke folder backup & terbaru...")
             os.makedirs(old_dir, exist_ok=True)
             os.makedirs(new_dir, exist_ok=True)
             shutil.copy2(target_file, old_file)
             shutil.copy2(target_file, new_file)
-            self.log(f"      Versi lama  -> {CONFIG['OLD_VERSION_FOLDER_NAME']}")
-            self.log(f"      Versi baru  -> {CONFIG['NEW_VERSION_FOLDER_NAME']}")
             self.after(0, lambda: self.progress.set(0.5))
 
-            # Step 3
-            self.after(0, lambda: self.status_label.configure(text="[3/4] Mengunduh & mengekstrak pembaruan..."))
-            self.log("\n[3/4] Mengunduh & mengekstrak pembaruan dari GitHub...")
+            self.log("[3/4] Unduh & ekstrak update...")
             zip_path = os.path.join(temp_dir, "update.zip")
             urllib.request.urlretrieve(CONFIG["GITHUB_ZIP_URL"], zip_path)
 
@@ -228,12 +164,9 @@ class UpdaterGUI(ctk.CTk):
                         break
                 if not source_update:
                     source_update = extract_dir
-            self.log(f"      Sumber update: {target_folder_name}")
             self.after(0, lambda: self.progress.set(0.75))
 
-            # Step 4
-            self.after(0, lambda: self.status_label.configure(text="[4/4] Menyuntikkan pembaruan ke file versi terbaru..."))
-            self.log("\n[4/4] Menyuntikkan pembaruan ke file di folder versi terbaru...")
+            self.log("[4/4] Suntikkan ke file versi terbaru...")
             work_dir = os.path.join(temp_dir, "new_xlsb")
             with zipfile.ZipFile(new_file, 'r') as zf:
                 zf.extractall(work_dir)
@@ -256,20 +189,14 @@ class UpdaterGUI(ctk.CTk):
 
             shutil.move(updated_temp, new_file)
 
-            self.log("\n" + "=" * 60)
-            self.log(" [OK] UPDATE SELESAI DENGAN SUKSES!")
-            self.log(f" File versi terbaru: {new_file}")
-            self.log("=" * 60)
+            self.log("")
+            self.log("[OK] Update selesai!")
+            self.log(f"     {new_file}")
             self.after(0, lambda: self.progress.set(1.0))
-            self.after(0, lambda: self.status_label.configure(text="Update selesai dengan sukses!"))
-            self.after(0, lambda: messagebox.showinfo(
-                "Sukses",
-                f"Update selesai!\nFile berhasil disimpan di:\n{new_dir}"
-            ))
+            self.after(0, lambda: messagebox.showinfo("Sukses", "Update selesai dengan sukses!"))
 
         except Exception as e:
-            self.log(f"\n[ERROR] Update gagal: {e}")
-            self.after(0, lambda: self.status_label.configure(text="Update gagal."))
+            self.log(f"[ERROR] {e}")
             self.after(0, lambda: messagebox.showerror("Gagal", f"Update gagal:\n{e}"))
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
@@ -290,7 +217,7 @@ def get_latest_version_from_github(log_func):
     except Exception:
         pass
     fallback = CONFIG["DEFAULT_VERSION"]
-    log_func(f"      [INFO] Menggunakan versi default: {fallback}")
+    log_func(f"      [INFO] Versi default: {fallback}")
     return fallback
 
 if __name__ == "__main__":
