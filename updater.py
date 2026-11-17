@@ -99,9 +99,10 @@ def run_update(github_zip_url: str, target_path_input: str, version_arg: str = N
             pythoncom.CoInitialize()
             app = win32.Dispatch("Excel.Application")
             
-            # Reset paksa seluruh settingan Excel agar tidak blank
+            # Reset paksa settingan aplikasi
             try:
                 app.Visible = True
+                app.Interactive = True
                 app.ScreenUpdating = True
                 app.DisplayAlerts = True
                 app.EnableEvents = True
@@ -120,20 +121,19 @@ def run_update(github_zip_url: str, target_path_input: str, version_arg: str = N
                 except Exception:
                     continue
                     
-            # Pastikan setiap workbook yang tersisa di-make visible dan aktif kembali
+            # SOLUSI PASTI BLANK: Paksa buat jendela baru (Window New) jika workbook tersisa mengalami blank view
             for wb in app.Workbooks:
                 try:
                     wb.Windows(1).Visible = True
                     wb.Activate()
-                except Exception:
-                    pass
+                    # Buat window baru untuk workbook tersebut agar merefresh tampilan grid Excel yang blank
+                    wb.NewWindow()
+                    # Tutup window lama yang blank
+                    if wb.Windows.Count > 1:
+                        wb.Windows(1).Close()
+                except Exception as e:
+                    print(f"      [Info Window] {e}")
                     
-            # Paksa Excel mengaktifkan kembali jendela aplikasi utama
-            try:
-                app.Interactive = True
-            except Exception:
-                pass
-                
         except Exception as e:
             print(f"      [Info COM] {e}")
             
