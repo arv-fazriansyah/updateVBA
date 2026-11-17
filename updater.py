@@ -92,7 +92,7 @@ def run_update(github_zip_url: str, target_path_input: str, version_arg: str = N
     backup_file_target = os.path.join(backup_dir, file_name)
     
     try:
-        print("\n[1/4] Memeriksa koneksi & menutup file Excel yang sedang berjalan...")
+        print("\n[1/4] Memeriksa koneksi & menutup file Excel yang dipilih...")
         urllib.request.urlopen("https://google.com", timeout=5)
         
         try:
@@ -100,15 +100,21 @@ def run_update(github_zip_url: str, target_path_input: str, version_arg: str = N
             app = win32.Dispatch("Excel.Application")
             target_abs = os.path.abspath(target_file).lower()
             
-            # Tutup langsung tanpa memanggil properti .Name setelah ditutup untuk menghindari COM disconnection error
             for wb in app.Workbooks:
                 try:
                     if os.path.abspath(wb.FullName).lower() == target_abs:
                         wb.Close(SaveChanges=False)
-                        print(f"      File target berhasil ditutup secara aman via Excel COM.")
+                        print(f"      File target berhasil ditutup secara aman.")
                         break
                 except Exception:
                     continue
+                    
+            # Jika masih ada file Excel lain yang terbuka, pastikan window/sheet-nya di-activate agar tidak blank
+            if app.Workbooks.Count > 0:
+                try:
+                    app.Workbooks(1).Activate()
+                except Exception:
+                    pass
         except Exception as e:
             print(f"      [Info COM] {e}")
             
