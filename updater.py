@@ -6,27 +6,22 @@ import tempfile
 import shutil
 import pythoncom
 import win32com.client as win32
+from config import CONFIG
 
 def get_latest_version_from_github() -> str:
-    """Mengambil string versi terbaru dari file version.txt di repository GitHub."""
-    version_urls = [
-        "https://raw.githubusercontent.com/arv-fazriansyah/updateARB/refs/heads/main/version.txt",
-        "https://raw.githubusercontent.com/arv-fazriansyah/updateVBA/refs/heads/main/version.txt"
-    ]
-    for url in version_urls:
-        try:
-            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                ver = resp.read().decode('utf-8').strip()
-                if ver:
-                    print(f"[OK] Berhasil mendeteksi versi terbaru dari GitHub: {ver}")
-                    return ver
-        except Exception:
-            continue
+    """Mengambil string versi terbaru dari file version.txt di repository GitHub berdasarkan config."""
+    try:
+        req = urllib.request.Request(CONFIG["VERSION_URL"], headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            ver = resp.read().decode('utf-8').strip()
+            if ver:
+                print(f"[OK] Berhasil mendeteksi versi terbaru dari GitHub: {ver}")
+                return ver
+    except Exception:
+        pass
     
-    # Jika gagal terhubung ke GitHub, gunakan tag "[Versi Terbaru]"
-    fallback_ver = "[Versi Terbaru]"
-    print(f"[WARNING] Gagal mengambil version.txt dari GitHub. Menggunakan tag: {fallback_ver}")
+    fallback_ver = CONFIG["DEFAULT_VERSION"]
+    print(f"[INFO] Menggunakan tag versi default: {fallback_ver}")
     return fallback_ver
 
 def find_target_excel(arg_input: str = None) -> str:
@@ -82,9 +77,8 @@ def find_target_excel(arg_input: str = None) -> str:
             print("[ERROR] Masukkan angka yang valid.")
 
 def run_update(github_zip_url: str, target_path_input: str, version_arg: str = None):
-    print("=== PROGRAM PEMBARUAN APLIKASI (UPDATER) ===")
+    print(f"=== PROGRAM PEMBARUAN APLIKASI (ARB {CONFIG['TARGET_YEAR']}) ===")
     
-    # Ambil versi dari argumen, atau GitHub, atau gunakan "[Versi Terbaru]" sebagai fallback
     version = version_arg if version_arg else get_latest_version_from_github()
     print(f"Versi Target Update: {version}")
     
@@ -96,15 +90,9 @@ def run_update(github_zip_url: str, target_path_input: str, version_arg: str = N
     target_dir = os.path.dirname(target_file)
     file_name = os.path.basename(target_file)
     
-    # Deteksi tahun dari nama file target atau versi
-    target_year = "2026"
-    for y in ["2027", "2026", "2025"]:
-        if y in file_name or y in version:
-            target_year = y
-            break
-    print(f"Target Tahun Aplikasi: {target_year}")
-
-    backup_dir = os.path.join(target_dir, f"BACKUP APLIKASI ARB {target_year}")
+    # Menggunakan konfigurasi tahun dan folder backup dari config.py secara pasti
+    target_year = CONFIG["TARGET_YEAR"]
+    backup_dir = os.path.join(target_dir, CONFIG["BACKUP_FOLDER_NAME"])
     
     temp_dir = tempfile.mkdtemp()
     backup_path = target_file + '.bak'
@@ -127,9 +115,9 @@ def run_update(github_zip_url: str, target_path_input: str, version_arg: str = N
         except Exception:
             pass
             
-        print(f"[6/10] Membuat backup file ke folder: BACKUP APLIKASI ARB {target_year}...")
+        print(f"[6/10] Membuat backup file ke folder: {CONFIG['BACKUP_FOLDER_NAME']}...")
         os.makedirs(backup_dir, exist_ok=True)
-        shutil.copy2(target_file, backup_dir)
+        shutil.copy2(target_file, backup_path)
         
         print("[7/10] Mengunduh paket update dari GitHub...")
         zip_path = os.path.join(temp_dir, "update.zip")
@@ -156,7 +144,7 @@ def run_update(github_zip_url: str, target_path_input: str, version_arg: str = N
             if not source_update:
                 source_update = extract_dir
 
-        print(f"Sumber pembaruan diambil dari folder: {target_folder_name}")
+        print(f"Sumber pembaruan diambil dari folder khusus: {target_folder_name}")
 
         print("[9/10] Menyuntikkan pembaruan sistem ke file Excel...")
         old_xlsb_dir = os.path.join(temp_dir, "old_xlsb")
@@ -216,7 +204,7 @@ def run_update(github_zip_url: str, target_path_input: str, version_arg: str = N
         shutil.rmtree(temp_dir)
 
 if __name__ == "__main__":
-    url = "https://codeload.github.com/arv-fazriansyah/updateARB/zip/refs/heads/main"
+    url = CONFIG["GITHUB_ZIP_URL"]
     
     arg_path = sys.argv[1] if len(sys.argv) > 1 and os.path.exists(sys.argv[1]) else None
     arg_ver = sys.argv[2] if len(sys.argv) > 2 else None
