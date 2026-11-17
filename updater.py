@@ -146,7 +146,6 @@ class UpdaterGUI(ctk.CTk):
                 base_name = re.sub(pattern, "", base_name, flags=re.IGNORECASE)
             final_name = f"{version}_{base_name}"
             new_file = os.path.join(new_dir, final_name)
-            self.log(f"      Nama hasil: {final_name}")
 
             self.log("[2/3] Salin file ke folder versi terbaru...")
             os.makedirs(new_dir, exist_ok=True)
