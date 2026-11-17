@@ -98,6 +98,17 @@ def run_update(github_zip_url: str, target_path_input: str, version_arg: str = N
         try:
             pythoncom.CoInitialize()
             app = win32.Dispatch("Excel.Application")
+            
+            # PENTING: Pulihkan pengaturan Excel yang terkunci/diubah oleh VBA Workbook_Open (ScreenUpdating, Visible, dll)
+            try:
+                app.Visible = True
+                app.ScreenUpdating = True
+                app.DisplayAlerts = True
+                app.EnableEvents = True
+                app.Calculation = -4105 # xlCalculationAutomatic
+            except Exception:
+                pass
+                
             target_abs = os.path.abspath(target_file).lower()
             
             for wb in app.Workbooks:
@@ -109,7 +120,13 @@ def run_update(github_zip_url: str, target_path_input: str, version_arg: str = N
                 except Exception:
                     continue
                     
-            # Jika masih ada file Excel lain yang terbuka, pastikan window/sheet-nya di-activate agar tidak blank
+            # Pastikan window/sheet dari file yang tersisa di-visible-kan dan di-activate kembali agar tidak blank
+            for wb in app.Workbooks:
+                try:
+                    wb.Windows(1).Visible = True
+                except Exception:
+                    pass
+                    
             if app.Workbooks.Count > 0:
                 try:
                     app.Workbooks(1).Activate()
