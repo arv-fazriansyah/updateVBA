@@ -137,7 +137,6 @@ class UpdaterGUI(ctk.CTk):
         try:
             self.log("[1/3] Cek versi terbaru...")
             version = get_latest_version_from_github(self.log)
-            self.log(f"      Versi: {version}")
             self.after(0, lambda: self.progress.set(0.33))
 
             # Bersihkan prefix versi lama agar tidak dobel, lalu pasang versi baru
@@ -197,7 +196,6 @@ class UpdaterGUI(ctk.CTk):
 
             self.log("")
             self.log("[OK] Update selesai!")
-            self.log(f"     {new_file}")
             self.after(0, lambda: self.progress.set(1.0))
             self.after(0, lambda: messagebox.showinfo("Sukses", "Update selesai dengan sukses!"))
 
