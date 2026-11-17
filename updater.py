@@ -28,8 +28,8 @@ def get_running_dir() -> str:
         return os.path.dirname(os.path.abspath(__file__))
 
 def find_target_excel(arg_input: str = None) -> str:
-    """Mencari file target Excel HANYA di dalam folder direktori saat ini (tempat .exe/.py berada)."""
-    if arg_input and os.path.exists(arg_input) and arg_input.endswith(('.xlsb', '.xlsm')):
+    """Mencari file target Excel HANYA di dalam folder direktori saat ini, mengabaikan file temporary Excel (~$)."""
+    if arg_input and os.path.exists(arg_input) and arg_input.endswith(('.xlsb', '.xlsm')) and not os.path.basename(arg_input).startswith('~$'):
         return os.path.abspath(arg_input)
         
     current_dir = get_running_dir()
@@ -40,14 +40,17 @@ def find_target_excel(arg_input: str = None) -> str:
             if any(exc in root.lower() for exc in ['.git', 'build', 'dist', 'backup', 'arb 2027']):
                 continue
             for f in files:
+                # Abaikan file temporary Excel yang diawali dengan ~$
+                if f.startswith('~$'):
+                    continue
                 if f.endswith(('.xlsb', '.xlsm')):
                     full_path = os.path.join(root, f)
                     found_files.append(full_path)
                             
-    found_files = [f for f in list(set(found_files)) if "BACKUP" not in f and not f.endswith('.bak')]
+    found_files = [f for f in list(set(found_files)) if "BACKUP" not in f and not f.endswith('.bak') and not os.path.basename(f).startswith('~$')]
     
     if not found_files:
-        print(f"[ERROR] Tidak ditemukan file Excel (.xlsb/.xlsm) di folder ini!")
+        print(f"[ERROR] Tidak ditemukan file aplikasi Excel (.xlsb/.xlsm) di folder ini!")
         print(f"        Lokasi: {current_dir}")
         return None
         
