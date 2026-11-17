@@ -7,6 +7,28 @@ import shutil
 import pythoncom
 import win32com.client as win32
 
+def get_latest_version_from_github() -> str:
+    """Mengambil string versi terbaru dari file version.txt di repository GitHub."""
+    version_urls = [
+        "https://raw.githubusercontent.com/arv-fazriansyah/updateARB/refs/heads/main/version.txt",
+        "https://raw.githubusercontent.com/arv-fazriansyah/updateVBA/refs/heads/main/version.txt"
+    ]
+    for url in version_urls:
+        try:
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                ver = resp.read().decode('utf-8').strip()
+                if ver:
+                    print(f"[OK] Berhasil mendeteksi versi terbaru dari GitHub: {ver}")
+                    return ver
+        except Exception:
+            continue
+    
+    # Fallback default jika gagal terhubung ke GitHub
+    default_ver = "v25.11.2025"
+    print(f"[WARNING] Gagal mengambil version.txt dari GitHub. Menggunakan versi default: {default_ver}")
+    return default_ver
+
 def find_target_excel(arg_input: str = None) -> str:
     """Mencari file target Excel secara cerdas berdasarkan argumen, drag-and-drop, atau smart scan dengan menu pilihan user."""
     if arg_input and os.path.exists(arg_input) and arg_input.endswith(('.xlsb', '.xlsm')):
@@ -59,8 +81,12 @@ def find_target_excel(arg_input: str = None) -> str:
         except ValueError:
             print("[ERROR] Masukkan angka yang valid.")
 
-def run_update(github_zip_url: str, target_path_input: str, version: str):
+def run_update(github_zip_url: str, target_path_input: str, version_arg: str = None):
     print("=== PROGRAM PEMBARUAN APLIKASI (UPDATER) ===")
+    
+    # [Metode 2] Jika versi tidak dikirim via argumen (atau kosong), ambil otomatis dari GitHub version.txt
+    version = version_arg if version_arg else get_latest_version_from_github()
+    print(f"Versi Target Update: {version}")
     
     target_file = find_target_excel(target_path_input)
     if not target_file:
@@ -70,8 +96,8 @@ def run_update(github_zip_url: str, target_path_input: str, version: str):
     target_dir = os.path.dirname(target_file)
     file_name = os.path.basename(target_file)
     
-    # Deteksi tahun dari nama file target atau versi (misal mengandung 2027 atau 2026)
-    target_year = "2026" # Default
+    # Deteksi tahun dari nama file target atau versi
+    target_year = "2026"
     for y in ["2027", "2026", "2025"]:
         if y in file_name or y in version:
             target_year = y
@@ -103,7 +129,7 @@ def run_update(github_zip_url: str, target_path_input: str, version: str):
             
         print(f"[6/10] Membuat backup file ke folder: BACKUP APLIKASI ARB {target_year}...")
         os.makedirs(backup_dir, exist_ok=True)
-        shutil.copy2(target_file, backup_dir)
+        shutil.copy2(target_file, backup_path)
         
         print("[7/10] Mengunduh paket update dari GitHub...")
         zip_path = os.path.join(temp_dir, "update.zip")
@@ -114,7 +140,6 @@ def run_update(github_zip_url: str, target_path_input: str, version: str):
         with zipfile.ZipFile(zip_path, 'r') as zf:
             zf.extractall(extract_dir)
             
-        # Cari folder sumber update berdasarkan tahun yang sesuai di dalam ZIP (misal "ARB 2027" atau "ARB 2026")
         source_update = None
         target_folder_name = f"ARB {target_year}"
         
@@ -123,7 +148,6 @@ def run_update(github_zip_url: str, target_path_input: str, version: str):
                 source_update = root
                 break
                 
-        # Fallback jika folder tahun spesifik tidak ditemukan
         if not source_update:
             for root, dirs, files in os.walk(extract_dir):
                 if 'customUI' in dirs or 'xl' in dirs:
@@ -186,14 +210,17 @@ def run_update(github_zip_url: str, target_path_input: str, version: str):
             shutil.copy2(backup_path, target_file)
             print("Dipulihkan kembali dari file backup.")
         if sys.stdin.isatty():
-            input("\nTekan Enter untuk keluar таблицы...")
+            input("\nTekan Enter untuk keluar...")
         sys.exit(1)
     finally:
         shutil.rmtree(temp_dir)
 
 if __name__ == "__main__":
     url = "https://codeload.github.com/arv-fazriansyah/updateARB/zip/refs/heads/main"
-    ver = sys.argv[2] if len(sys.argv) > 2 else "v25.11.2025"
-    arg_path = sys.argv[1] if len(sys.argv) > 1 and os.path.exists(sys.argv[1]) else None
     
-    run_update(url, arg_path, ver)
+    # Argumen 1: Path file (jika ada)
+    # Argumen 2: Versi (jika kosong, akan otomatis mengambil dari version.txt di GitHub)
+    arg_path = sys.argv[1] if len(sys.argv) > 1 and os.path.exists(sys.argv[1]) else None
+    arg_ver = sys.argv[2] if len(sys.argv) > 2 else None
+    
+    run_update(url, arg_path, arg_ver)
