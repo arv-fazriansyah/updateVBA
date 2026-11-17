@@ -7,13 +7,8 @@ from config import CONFIG
 def extract_excel_components(excel_path: str, output_dir: str):
     """
     Mengekstrak hanya folder 'xl' dan 'customUI' dari dalam file .xlsb/.xlsm 
-    ke dalam folder tujuan.
+    ke dalam folder tujuan secara bersih.
     """
-    print(f"=== EKSTRAKTOR KOMPONEN EXCEL (xl & customUI) ===")
-    print(f"File Sumber : {excel_path}")
-    print(f"Tujuan      : {output_dir}")
-    print("-" * 50)
-    
     if not os.path.exists(excel_path):
         print(f"[ERROR] File Excel tidak ditemukan: {excel_path}")
         sys.exit(1)
@@ -21,21 +16,13 @@ def extract_excel_components(excel_path: str, output_dir: str):
     try:
         os.makedirs(output_dir, exist_ok=True)
         
-        print("[1/2] Membuka arsip internal file Excel...")
-        extracted_count = 0
-        
         with zipfile.ZipFile(excel_path, 'r') as zf:
             for member in zf.namelist():
                 norm_member = member.replace('\\', '/')
                 if norm_member.startswith('xl/') or norm_member.startswith('customUI/'):
                     zf.extract(member, output_dir)
-                    extracted_count += 1
                     
-        print(f"[2/2] Berhasil mengekstrak {extracted_count} item komponen.")
-        print("=" * 50)
-        print("[OK] EKSTRAK KOMPONEN (xl & customUI) SELESAI!")
-        print(f"Disimpan di: {output_dir}")
-        print("=" * 50)
+        print(f"\n[OK] Berhasil mengekstrak komponen (xl & customUI) ke folder: {output_dir}")
         
     except Exception as e:
         print(f"\n[ERROR] Gagal mengekstrak komponen Excel: {e}")
@@ -44,10 +31,8 @@ def extract_excel_components(excel_path: str, output_dir: str):
 def get_running_dir() -> str:
     """Mendapatkan direktori sebenarnya dari file .exe atau script .py yang sedang dieksekusi."""
     if getattr(sys, 'frozen', False):
-        # Jika dijalankan sebagai file compiled .exe PyInstaller
         return os.path.dirname(os.path.abspath(sys.executable))
     else:
-        # Jika dijalankan via interpreter python script.py
         return os.path.dirname(os.path.abspath(__file__))
 
 def find_excel_files(search_dir: str) -> list:
@@ -73,9 +58,6 @@ def find_excel_files(search_dir: str) -> list:
 
 def main():
     current_dir = get_running_dir()
-    print(f"=== EKSTRAKTOR EXCEL LOKAL ({CONFIG['TARGET_YEAR']}) ===")
-    print(f"Memindai file Excel di folder: {current_dir}")
-    
     excel_files = find_excel_files(current_dir)
     
     if not excel_files:
@@ -84,13 +66,12 @@ def main():
             input("\nTekan Enter untuk keluar...")
         sys.exit(1)
         
-    print("\n" + "=" * 80)
-    print(" PILIH FILE EXCEL UNTUK DIEKSTRAK KOMPONENNYA (xl & customUI):")
-    print("=" * 80)
+    print("\n" + "=" * 60)
+    print(" PILIH FILE EXCEL YANG AKAN DIEKSTRAK:")
+    print("=" * 60)
     for idx, ef in enumerate(excel_files):
         print(f"  [{idx + 1}] {ef['name']}")
-        print(f"      Path: {ef['full_path']}")
-    print("=" * 80)
+    print("=" * 60)
     
     while True:
         choice = input(f"Pilih nomor file [1-{len(excel_files)}] (atau Ctrl+C untuk batal): ").strip()
@@ -98,7 +79,6 @@ def main():
             sel_idx = int(choice) - 1
             if 0 <= sel_idx < len(excel_files):
                 selected_file = excel_files[sel_idx]
-                print(f"\n[OK] Anda memilih: {selected_file['full_path']}\n")
                 break
             else:
                 print("[ERROR] Nomor pilihan tidak valid.")
