@@ -95,32 +95,25 @@ def run_update(github_zip_url: str, target_path_input: str, version_arg: str = N
         print("\n[1/4] Memeriksa koneksi & menutup file Excel yang sedang berjalan...")
         urllib.request.urlopen("https://google.com", timeout=5)
         
-        closed_by_com = False
         try:
             pythoncom.CoInitialize()
             app = win32.Dispatch("Excel.Application")
             target_abs = os.path.abspath(target_file).lower()
+            
+            # Kumpulkan workbook yang cocok terlebih dahulu untuk menghindari disconnect iterator
+            matching_workbooks = []
             for wb in app.Workbooks:
                 try:
                     if os.path.abspath(wb.FullName).lower() == target_abs:
-                        wb.Close(SaveChanges=False)
-                        closed_by_com = True
-                        print(f"      File berhasil ditutup secara aman via Excel Application COM.")
-                        break
+                        matching_workbooks.append(wb)
                 except Exception:
                     continue
+                    
+            for wb in matching_workbooks:
+                wb.Close(SaveChanges=False)
+                print(f"      File berhasil ditutup secara aman via Excel Application COM.")
         except Exception as e:
             print(f"      [Info COM] {e}")
-            
-        # Fallback jika COM gagal atau file terbuka di instance terpisah/read-only
-        if not closed_by_com:
-            print("      [Info] Mencoba menutup paksa handle file...")
-            try:
-                import subprocess
-                # Gunakan wmic atau taskkill jika diperlukan, atau beri jeda
-                pass
-            except Exception:
-                pass
             
         print(f"[2/4] Membuat backup ke folder '{CONFIG['BACKUP_FOLDER_NAME']}'...")
         os.makedirs(backup_dir, exist_ok=True)
