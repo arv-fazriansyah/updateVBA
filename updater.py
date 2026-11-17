@@ -1,51 +1,132 @@
 import os
-import sys
 import zipfile
 import urllib.request
 import tempfile
 import shutil
 import threading
 import queue
-import tkinter as tk
+import customtkinter as ctk
 from tkinter import filedialog, messagebox
 from config import CONFIG
 
-class UpdaterGUI:
-    def __init__(self, root):
-        self.root = root
-        self.root.title(f"Updater Aplikasi ARB {CONFIG['TARGET_YEAR']}")
-        self.root.geometry("640x420")
-        self.root.resizable(False, False)
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("blue")
+
+class UpdaterGUI(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+        self.title(f"Updater Aplikasi ARB {CONFIG['TARGET_YEAR']}")
+        self.geometry("760x560")
+        self.resizable(False, False)
 
         self.log_queue = queue.Queue()
         self.target_file = None
 
-        # Header
-        tk.Label(root, text=f"UPDATER APLIKASI ARB {CONFIG['TARGET_YEAR']}", font=("Segoe UI", 14, "bold")).pack(pady=10)
+        # Grid layout
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(4, weight=1)
 
-        # File selection frame
-        frame = tk.Frame(root)
-        frame.pack(pady=5, padx=15, fill="x")
+        # Header card
+        header = ctk.CTkFrame(self, corner_radius=16)
+        header.grid(row=0, column=0, padx=24, pady=(24, 12), sticky="ew")
+        header.grid_columnconfigure(0, weight=1)
 
-        tk.Label(frame, text="File Excel Target:", font=("Segoe UI", 10)).pack(anchor="w")
-        self.file_entry = tk.Entry(frame, width=70, state="readonly")
-        self.file_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        ctk.CTkLabel(
+            header,
+            text=f"UPDATER APLIKASI ARB {CONFIG['TARGET_YEAR']}",
+            font=ctk.CTkFont(size=22, weight="bold")
+        ).grid(row=0, column=0, sticky="w", padx=24, pady=(18, 4))
 
-        self.browse_btn = tk.Button(frame, text="Pilih File", command=self.browse_file, width=12)
-        self.browse_btn.pack(side="right")
+        ctk.CTkLabel(
+            header,
+            text="Pilih file Excel aplikasi, lalu klik Mulai Update",
+            font=ctk.CTkFont(size=13),
+            text_color="gray70"
+        ).grid(row=1, column=0, sticky="w", padx=24, pady=(0, 18))
+
+        # File selection card
+        file_card = ctk.CTkFrame(self, corner_radius=16)
+        file_card.grid(row=1, column=0, padx=24, pady=12, sticky="ew")
+        file_card.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            file_card,
+            text="FILE EXCEL TARGET",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="gray70"
+        ).grid(row=0, column=0, columnspan=2, sticky="w", padx=20, pady=(16, 6))
+
+        self.file_entry = ctk.CTkEntry(
+            file_card,
+            placeholder_text="Belum ada file dipilih...",
+            height=40,
+            corner_radius=10,
+            state="disabled"
+        )
+        self.file_entry.grid(row=1, column=0, sticky="ew", padx=(20, 8), pady=(0, 18))
+
+        self.browse_btn = ctk.CTkButton(
+            file_card,
+            text="Pilih File",
+            width=120,
+            height=40,
+            corner_radius=10,
+            command=self.browse_file
+        )
+        self.browse_btn.grid(row=1, column=1, padx=(0, 20), pady=(0, 18))
+
+        # Progress + status card
+        status_card = ctk.CTkFrame(self, corner_radius=16)
+        status_card.grid(row=2, column=0, padx=24, pady=12, sticky="ew")
+        status_card.grid_columnconfigure(0, weight=1)
+
+        self.status_label = ctk.CTkLabel(
+            status_card,
+            text="Siap untuk memulai update",
+            font=ctk.CTkFont(size=13, weight="bold")
+        )
+        self.status_label.grid(row=0, column=0, sticky="w", padx=20, pady=(14, 8))
+
+        self.progress = ctk.CTkProgressBar(status_card, height=10, corner_radius=6)
+        self.progress.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 16))
+        self.progress.set(0)
 
         # Start button
-        self.start_btn = tk.Button(root, text="Mulai Update", command=self.start_update, width=20, height=2,
-                                  state="disabled", bg="#2196F3", fg="white", font=("Segoe UI", 11, "bold"))
-        self.start_btn.pack(pady=10)
+        self.start_btn = ctk.CTkButton(
+            self,
+            text="Mulai Update",
+            height=48,
+            corner_radius=12,
+            font=ctk.CTkFont(size=15, weight="bold"),
+            fg_color="#2563EB",
+            hover_color="#1D4ED8",
+            state="disabled",
+            command=self.start_update
+        )
+        self.start_btn.grid(row=3, column=0, padx=24, pady=(4, 12), sticky="ew")
 
-        # Log area
-        tk.Label(root, text="Log Proses:", font=("Segoe UI", 10)).pack(anchor="w", padx=15)
-        self.log_text = tk.Text(root, height=14, width=78, state="disabled", bg="#1e1e1e", fg="#d4d4d4",
-                                font=("Consolas", 9))
-        self.log_text.pack(padx=15, pady=5)
+        # Log card
+        log_card = ctk.CTkFrame(self, corner_radius=16)
+        log_card.grid(row=4, column=0, padx=24, pady=(0, 24), sticky="nsew")
+        log_card.grid_columnconfigure(0, weight=1)
+        log_card.grid_rowconfigure(1, weight=1)
 
-        self.root.after(100, self.process_queue)
+        ctk.CTkLabel(
+            log_card,
+            text="LOG PROSES",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="gray70"
+        ).grid(row=0, column=0, sticky="w", padx=20, pady=(16, 6))
+
+        self.log_text = ctk.CTkTextbox(
+            log_card,
+            corner_radius=10,
+            font=ctk.CTkFont(family="Consolas", size=11),
+            state="disabled"
+        )
+        self.log_text.grid(row=1, column=0, sticky="nsew", padx=20, pady=(0, 18))
+
+        self.after(100, self.process_queue)
 
     def log(self, msg):
         self.log_queue.put(msg)
@@ -54,13 +135,13 @@ class UpdaterGUI:
         try:
             while True:
                 msg = self.log_queue.get_nowait()
-                self.log_text.config(state="normal")
+                self.log_text.configure(state="normal")
                 self.log_text.insert("end", msg + "\n")
                 self.log_text.see("end")
-                self.log_text.config(state="disabled")
+                self.log_text.configure(state="disabled")
         except queue.Empty:
             pass
-        self.root.after(100, self.process_queue)
+        self.after(100, self.process_queue)
 
     def browse_file(self):
         path = filedialog.askopenfilename(
@@ -69,12 +150,13 @@ class UpdaterGUI:
         )
         if path and path.lower().endswith((".xlsb", ".xlsm")):
             self.target_file = os.path.abspath(path)
-            self.file_entry.config(state="normal")
+            self.file_entry.configure(state="normal")
             self.file_entry.delete(0, "end")
             self.file_entry.insert(0, self.target_file)
-            self.file_entry.config(state="readonly")
-            self.start_btn.config(state="normal")
-            self.log(f"[OK] File dipilih: {os.path.basename(self.target_file)}")
+            self.file_entry.configure(state="disabled")
+            self.start_btn.configure(state="normal")
+            self.status_label.configure(text=f"File siap: {os.path.basename(self.target_file)}")
+            self.log(f"[OK] File dipilih: {self.target_file}")
         elif path:
             messagebox.showerror("Error", "File harus berformat .xlsb atau .xlsm")
 
@@ -82,8 +164,10 @@ class UpdaterGUI:
         if not self.target_file:
             messagebox.showwarning("Peringatan", "Pilih file Excel terlebih dahulu.")
             return
-        self.browse_btn.config(state="disabled")
-        self.start_btn.config(state="disabled")
+        self.browse_btn.configure(state="disabled")
+        self.start_btn.configure(state="disabled")
+        self.progress.set(0)
+        self.status_label.configure(text="Memulai proses update...")
         self.log("\n" + "=" * 60)
         self.log(" MEMULAI PROSES UPDATE")
         self.log("=" * 60)
@@ -103,12 +187,15 @@ class UpdaterGUI:
         temp_dir = tempfile.mkdtemp()
 
         try:
-            # Step 1: Cek versi terbaru
+            # Step 1
+            self.after(0, lambda: self.status_label.configure(text="[1/4] Mengecek versi terbaru..."))
             self.log("\n[1/4] Mengecek versi terbaru...")
             version = get_latest_version_from_github(self.log)
             self.log(f"      Versi Target : {version}")
+            self.after(0, lambda: self.progress.set(0.25))
 
-            # Step 2: Salin file ke 2 folder (versi lama & versi terbaru)
+            # Step 2
+            self.after(0, lambda: self.status_label.configure(text="[2/4] Menyalin file ke folder backup & versi terbaru..."))
             self.log("\n[2/4] Menyalin file ke folder backup & versi terbaru...")
             os.makedirs(old_dir, exist_ok=True)
             os.makedirs(new_dir, exist_ok=True)
@@ -116,12 +203,13 @@ class UpdaterGUI:
             shutil.copy2(target_file, new_file)
             self.log(f"      Versi lama  -> {CONFIG['OLD_VERSION_FOLDER_NAME']}")
             self.log(f"      Versi baru  -> {CONFIG['NEW_VERSION_FOLDER_NAME']}")
+            self.after(0, lambda: self.progress.set(0.5))
 
-            # Step 3: Unduh & ekstrak paket update dari GitHub
+            # Step 3
+            self.after(0, lambda: self.status_label.configure(text="[3/4] Mengunduh & mengekstrak pembaruan..."))
             self.log("\n[3/4] Mengunduh & mengekstrak pembaruan dari GitHub...")
-            github_zip_url = CONFIG["GITHUB_ZIP_URL"]
             zip_path = os.path.join(temp_dir, "update.zip")
-            urllib.request.urlretrieve(github_zip_url, zip_path)
+            urllib.request.urlretrieve(CONFIG["GITHUB_ZIP_URL"], zip_path)
 
             extract_dir = os.path.join(temp_dir, "extracted")
             with zipfile.ZipFile(zip_path, 'r') as zf:
@@ -141,47 +229,55 @@ class UpdaterGUI:
                 if not source_update:
                     source_update = extract_dir
             self.log(f"      Sumber update: {target_folder_name}")
+            self.after(0, lambda: self.progress.set(0.75))
 
-            # Step 4: Suntikkan update ke file di folder VERSI TERBARU
+            # Step 4
+            self.after(0, lambda: self.status_label.configure(text="[4/4] Menyuntikkan pembaruan ke file versi terbaru..."))
             self.log("\n[4/4] Menyuntikkan pembaruan ke file di folder versi terbaru...")
-            old_xlsb_dir = os.path.join(temp_dir, "new_xlsb")
-            with zipfile.ZipFile(new_file, 'r') as new_zf:
-                new_zf.extractall(old_xlsb_dir)
+            work_dir = os.path.join(temp_dir, "new_xlsb")
+            with zipfile.ZipFile(new_file, 'r') as zf:
+                zf.extractall(work_dir)
 
             for root, dirs, files in os.walk(source_update):
                 for file in files:
                     full_path = os.path.join(root, file)
                     rel_path = os.path.relpath(full_path, source_update)
-                    dest_path = os.path.join(old_xlsb_dir, rel_path)
+                    dest_path = os.path.join(work_dir, rel_path)
                     os.makedirs(os.path.dirname(dest_path), exist_ok=True)
                     shutil.copy2(full_path, dest_path)
 
-            updated_temp_file = os.path.join(temp_dir, "updated.xlsb")
-            with zipfile.ZipFile(updated_temp_file, 'w', zipfile.ZIP_DEFLATED) as out_zf:
-                for root, dirs, files in os.walk(old_xlsb_dir):
+            updated_temp = os.path.join(temp_dir, "updated.xlsb")
+            with zipfile.ZipFile(updated_temp, 'w', zipfile.ZIP_DEFLATED) as out_zf:
+                for root, dirs, files in os.walk(work_dir):
                     for file in files:
                         full_path = os.path.join(root, file)
-                        arcname = os.path.relpath(full_path, old_xlsb_dir)
+                        arcname = os.path.relpath(full_path, work_dir)
                         out_zf.write(full_path, arcname)
 
-            shutil.move(updated_temp_file, new_file)
+            shutil.move(updated_temp, new_file)
 
             self.log("\n" + "=" * 60)
             self.log(" [OK] UPDATE SELESAI DENGAN SUKSES!")
             self.log(f" File versi terbaru: {new_file}")
             self.log("=" * 60)
-            self.root.after(0, lambda: messagebox.showinfo("Sukses", f"Update selesai!\nFile berhasil disimpan di:\n{new_dir}"))
+            self.after(0, lambda: self.progress.set(1.0))
+            self.after(0, lambda: self.status_label.configure(text="Update selesai dengan sukses!"))
+            self.after(0, lambda: messagebox.showinfo(
+                "Sukses",
+                f"Update selesai!\nFile berhasil disimpan di:\n{new_dir}"
+            ))
 
         except Exception as e:
             self.log(f"\n[ERROR] Update gagal: {e}")
-            self.root.after(0, lambda: messagebox.showerror("Gagal", f"Update gagal:\n{e}"))
+            self.after(0, lambda: self.status_label.configure(text="Update gagal."))
+            self.after(0, lambda: messagebox.showerror("Gagal", f"Update gagal:\n{e}"))
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
-            self.root.after(0, self._enable_buttons)
+            self.after(0, self._enable_buttons)
 
     def _enable_buttons(self):
-        self.browse_btn.config(state="normal")
-        self.start_btn.config(state="normal")
+        self.browse_btn.configure(state="normal")
+        self.start_btn.configure(state="normal")
 
 def get_latest_version_from_github(log_func):
     try:
@@ -198,6 +294,5 @@ def get_latest_version_from_github(log_func):
     return fallback
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = UpdaterGUI(root)
-    root.mainloop()
+    app = UpdaterGUI()
+    app.mainloop()
