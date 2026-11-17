@@ -4,11 +4,12 @@ import zipfile
 import urllib.request
 import tempfile
 import shutil
+import datetime
 import pythoncom
 import win32com.client as win32
 
 def get_latest_version_from_github() -> str:
-    """Mengambil string versi terbaru dari file version.txt di repository GitHub."""
+    """Mengambil string versi terbaru dari file version.txt di repository GitHub, atau generate otomatis berdasarkan tanggal hari ini."""
     version_urls = [
         "https://raw.githubusercontent.com/arv-fazriansyah/updateARB/refs/heads/main/version.txt",
         "https://raw.githubusercontent.com/arv-fazriansyah/updateVBA/refs/heads/main/version.txt"
@@ -24,10 +25,10 @@ def get_latest_version_from_github() -> str:
         except Exception:
             continue
     
-    # Fallback default jika gagal terhubung ke GitHub
-    default_ver = "v25.11.2025"
-    print(f"[WARNING] Gagal mengambil version.txt dari GitHub. Menggunakan versi default: {default_ver}")
-    return default_ver
+    # [Ide Cerdas] Jika gagal terhubung ke GitHub, gunakan Tanggal Hari Ini (Format: vDD.MM.YYYY)
+    today_ver = datetime.datetime.now().strftime("v%d.%m.%Y")
+    print(f"[INFO] Menggunakan versi dinamis berdasarkan tanggal hari ini: {today_ver}")
+    return today_ver
 
 def find_target_excel(arg_input: str = None) -> str:
     """Mencari file target Excel secara cerdas berdasarkan argumen, drag-and-drop, atau smart scan dengan menu pilihan user."""
@@ -84,7 +85,7 @@ def find_target_excel(arg_input: str = None) -> str:
 def run_update(github_zip_url: str, target_path_input: str, version_arg: str = None):
     print("=== PROGRAM PEMBARUAN APLIKASI (UPDATER) ===")
     
-    # [Metode 2] Jika versi tidak dikirim via argumen (atau kosong), ambil otomatis dari GitHub version.txt
+    # Ambil versi dari argumen, atau GitHub, atau Tanggal Hari Ini sebagai fallback cerdas
     version = version_arg if version_arg else get_latest_version_from_github()
     print(f"Versi Target Update: {version}")
     
@@ -129,7 +130,7 @@ def run_update(github_zip_url: str, target_path_input: str, version_arg: str = N
             
         print(f"[6/10] Membuat backup file ke folder: BACKUP APLIKASI ARB {target_year}...")
         os.makedirs(backup_dir, exist_ok=True)
-        shutil.copy2(target_file, backup_path)
+        shutil.copy2(target_file, backup_dir)
         
         print("[7/10] Mengunduh paket update dari GitHub...")
         zip_path = os.path.join(temp_dir, "update.zip")
@@ -218,8 +219,6 @@ def run_update(github_zip_url: str, target_path_input: str, version_arg: str = N
 if __name__ == "__main__":
     url = "https://codeload.github.com/arv-fazriansyah/updateARB/zip/refs/heads/main"
     
-    # Argumen 1: Path file (jika ada)
-    # Argumen 2: Versi (jika kosong, akan otomatis mengambil dari version.txt di GitHub)
     arg_path = sys.argv[1] if len(sys.argv) > 1 and os.path.exists(sys.argv[1]) else None
     arg_ver = sys.argv[2] if len(sys.argv) > 2 else None
     
