@@ -42,34 +42,24 @@ def extract_excel_components(excel_path: str, output_dir: str):
         sys.exit(1)
 
 def find_excel_files() -> list:
-    """Mencari file Excel (.xlsb / .xlsm) secara cerdas menggunakan Smart Scan (folder exe, Documents, excel_files, Downloads)."""
-    search_dirs = [
-        os.path.dirname(os.path.abspath(__file__)),
-        os.path.join(os.path.expanduser("~"), "Documents", "excel_files"),
-        os.path.join(os.path.expanduser("~"), "Documents"),
-        os.path.join(os.path.expanduser("~"), "Downloads")
-    ]
+    """Mencari file Excel (.xlsb / .xlsm) HANYA di dalam folder direktori saat ini (tempat .exe/.py berada)."""
+    current_dir = os.path.dirname(os.path.abspath(__file__))
     
     found_files = []
-    for d in search_dirs:
-        if os.path.exists(d):
-            for root, dirs, files in os.walk(d):
-                # Abaikan folder build, dist, git, backup, dan target folder ARB
-                if any(exc in root.lower() for exc in ['.git', 'build', 'dist', 'backup', 'arb 2027']):
-                    continue
-                if root.count(os.sep) - d.count(os.sep) > 2: 
-                    continue
-                for f in files:
-                    if f.endswith(('.xlsb', '.xlsm')):
-                        full_path = os.path.join(root, f)
-                        rel_path = os.path.relpath(full_path, d)
-                        found_files.append({
-                            "name": f,
-                            "rel_path": f"{d} ({rel_path})",
-                            "full_path": full_path
-                        })
-                        
-    # Hilangkan duplikat berdasarkan full_path
+    if os.path.exists(current_dir):
+        for root, dirs, files in os.walk(current_dir):
+            # Abaikan folder build, dist, git, backup, dan target folder ARB
+            if any(exc in root.lower() for exc in ['.git', 'build', 'dist', 'backup', 'arb 2027']):
+                continue
+            for f in files:
+                if f.endswith(('.xlsb', '.xlsm')):
+                    full_path = os.path.join(root, f)
+                    found_files.append({
+                        "name": f,
+                        "full_path": full_path
+                    })
+                    
+    # Hilangkan duplikat
     unique_files = {}
     for ef in found_files:
         unique_files[ef['full_path']] = ef
@@ -77,13 +67,14 @@ def find_excel_files() -> list:
     return list(unique_files.values())
 
 def main():
-    print(f"=== SMART SCAN EKSTRAKTOR EXCEL ({CONFIG['TARGET_YEAR']}) ===")
-    print("Memindai file Excel di komputer secara otomatis...")
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    print(f"=== EKSTRAKTOR EXCEL LOKAL ({CONFIG['TARGET_YEAR']}) ===")
+    print(f"Memindai file Excel di folder: {current_dir}")
     
     excel_files = find_excel_files()
     
     if not excel_files:
-        print(f"[ERROR] Tidak ditemukan file Excel (.xlsb/.xlsm) di komputer ini!")
+        print(f"[ERROR] Tidak ditemukan file Excel (.xlsb/.xlsm) di folder ini ({current_dir})!")
         if sys.stdin.isatty():
             input("\nTekan Enter untuk keluar...")
         sys.exit(1)
@@ -109,9 +100,8 @@ def main():
         except ValueError:
             print("[ERROR] Masukkan angka yang valid.")
             
-    # Direktori tujuan: folder "ARB 2027" di tempat file Excel tersebut berada (atau di folder exe)
-    target_dir = os.path.dirname(selected_file['full_path'])
-    output_dir = os.path.join(target_dir, f"ARB {CONFIG['TARGET_YEAR']}")
+    # Direktori tujuan: folder "ARB 2027" di direktori tempat script/exe berada
+    output_dir = os.path.join(current_dir, f"ARB {CONFIG['TARGET_YEAR']}")
     
     extract_excel_components(selected_file['full_path'], output_dir)
     
