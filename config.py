@@ -4,13 +4,10 @@
 # Ubah pengaturan di bawah ini dengan mudah sesuai kebutuhan proyek Anda:
 
 CONFIG = {
-    # Tahun aplikasi (digunakan untuk folder backup dan folder sumber di dalam ZIP GitHub)
+    # Tahun aplikasi (digunakan untuk folder sumber di dalam ZIP GitHub)
     "TARGET_YEAR": "2027",
-    
-    # Nama folder untuk menyimpan salinan versi lama (file asli sebelum di-update)
-    "OLD_VERSION_FOLDER_NAME": "BACKUP VERSI LAMA ARB 2027",
 
-    # Nama folder untuk menyimpan versi terbaru (file hasil suntikan update)
+    # Nama folder output satu-satunya (file hasil suntikan update)
     "NEW_VERSION_FOLDER_NAME": "VERSI TERBARU ARB 2027",
     
     # URL repository file ZIP update dari GitHub

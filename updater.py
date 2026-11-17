@@ -123,27 +123,23 @@ class UpdaterGUI(ctk.CTk):
         file_name = os.path.basename(target_file)
         target_year = CONFIG["TARGET_YEAR"]
 
-        old_dir = os.path.join(source_dir, CONFIG["OLD_VERSION_FOLDER_NAME"])
         new_dir = os.path.join(source_dir, CONFIG["NEW_VERSION_FOLDER_NAME"])
-        old_file = os.path.join(old_dir, file_name)
         new_file = os.path.join(new_dir, file_name)
 
         temp_dir = tempfile.mkdtemp()
 
         try:
-            self.log("[1/4] Cek versi terbaru...")
+            self.log("[1/3] Cek versi terbaru...")
             version = get_latest_version_from_github(self.log)
             self.log(f"      Versi: {version}")
-            self.after(0, lambda: self.progress.set(0.25))
+            self.after(0, lambda: self.progress.set(0.33))
 
-            self.log("[2/4] Salin file ke folder backup & terbaru...")
-            os.makedirs(old_dir, exist_ok=True)
+            self.log("[2/3] Salin file ke folder versi terbaru...")
             os.makedirs(new_dir, exist_ok=True)
-            shutil.copy2(target_file, old_file)
             shutil.copy2(target_file, new_file)
-            self.after(0, lambda: self.progress.set(0.5))
+            self.after(0, lambda: self.progress.set(0.66))
 
-            self.log("[3/4] Unduh & ekstrak update...")
+            self.log("[3/3] Unduh, ekstrak & suntikkan update...")
             zip_path = os.path.join(temp_dir, "update.zip")
             urllib.request.urlretrieve(CONFIG["GITHUB_ZIP_URL"], zip_path)
 
@@ -164,9 +160,6 @@ class UpdaterGUI(ctk.CTk):
                         break
                 if not source_update:
                     source_update = extract_dir
-            self.after(0, lambda: self.progress.set(0.75))
-
-            self.log("[4/4] Suntikkan ke file versi terbaru...")
             work_dir = os.path.join(temp_dir, "new_xlsb")
             with zipfile.ZipFile(new_file, 'r') as zf:
                 zf.extractall(work_dir)
