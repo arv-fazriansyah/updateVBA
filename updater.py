@@ -24,35 +24,34 @@ def get_latest_version_from_github() -> str:
     print(f"[INFO] Menggunakan tag versi default: {fallback_ver}")
     return fallback_ver
 
+def get_running_dir() -> str:
+    """Mendapatkan direktori sebenarnya dari file .exe atau script .py yang sedang dieksekusi."""
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(os.path.abspath(sys.executable))
+    else:
+        return os.path.dirname(os.path.abspath(__file__))
+
 def find_target_excel(arg_input: str = None) -> str:
-    """Mencari file target Excel secara cerdas berdasarkan argumen, drag-and-drop, atau smart scan dengan menu pilihan user."""
+    """Mencari file target Excel HANYA di dalam folder direktori saat ini (tempat .exe/.py berada)."""
     if arg_input and os.path.exists(arg_input) and arg_input.endswith(('.xlsb', '.xlsm')):
         return os.path.abspath(arg_input)
         
-    search_dirs = [
-        os.path.dirname(os.path.abspath(__file__)),
-        os.path.join(os.path.expanduser("~"), "Documents", "excel_files"),
-        os.path.join(os.path.expanduser("~"), "Documents"),
-        os.path.join(os.path.expanduser("~"), "Downloads")
-    ]
+    current_dir = get_running_dir()
     
     found_files = []
-    for d in search_dirs:
-        if os.path.exists(d):
-            for root, dirs, files in os.walk(d):
-                if "backup" in root.lower() or "temp" in root.lower():
-                    continue
-                if root.count(os.sep) - d.count(os.sep) > 2: 
-                    continue
-                for f in files:
-                    if "rbk" in f.lower() or "master" in f.lower() or "arb" in f.lower():
-                        if f.endswith(('.xlsb', '.xlsm')):
-                            found_files.append(os.path.join(root, f))
+    if os.path.exists(current_dir):
+        for root, dirs, files in os.walk(current_dir):
+            if any(exc in root.lower() for exc in ['.git', 'build', 'dist', 'backup', 'arb 2027']):
+                continue
+            for f in files:
+                if f.endswith(('.xlsb', '.xlsm')):
+                    full_path = os.path.join(root, f)
+                    found_files.append(full_path)
                             
     found_files = [f for f in list(set(found_files)) if "BACKUP" not in f and not f.endswith('.bak')]
     
     if not found_files:
-        print("[ERROR] Tidak ditemukan file aplikasi Excel (.xlsb/.xlsm) di komputer ini!")
+        print(f"[ERROR] Tidak ditemukan file aplikasi Excel (.xlsb/.xlsm) di folder ini ({current_dir})!")
         print("Tip: Seret (Drag) file Excel Anda dan lepaskan di atas ikon updater.exe")
         return None
         
@@ -90,7 +89,6 @@ def run_update(github_zip_url: str, target_path_input: str, version_arg: str = N
     target_dir = os.path.dirname(target_file)
     file_name = os.path.basename(target_file)
     
-    # Menggunakan konfigurasi tahun dan folder backup dari config.py secara pasti
     target_year = CONFIG["TARGET_YEAR"]
     backup_dir = os.path.join(target_dir, CONFIG["BACKUP_FOLDER_NAME"])
     
