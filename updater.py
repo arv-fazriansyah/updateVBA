@@ -93,7 +93,6 @@ def run_update(github_zip_url: str, target_path_input: str, version_arg: str = N
     backup_dir = os.path.join(target_dir, CONFIG["BACKUP_FOLDER_NAME"])
     
     temp_dir = tempfile.mkdtemp()
-    backup_path = target_file + '.bak'
     
     try:
         print("\n[1/10] Menyiapkan update manager...")
@@ -115,9 +114,9 @@ def run_update(github_zip_url: str, target_path_input: str, version_arg: str = N
             
         print(f"[6/10] Membuat backup file ke folder: {CONFIG['BACKUP_FOLDER_NAME']}...")
         os.makedirs(backup_dir, exist_ok=True)
-        # Salin file asli ke folder backup DAN buat file .bak internal
-        shutil.copy2(target_file, backup_dir)
-        shutil.copy2(target_file, backup_path)
+        # Langsung salin file asli ke folder backup
+        backup_file_target = os.path.join(backup_dir, file_name)
+        shutil.copy2(target_file, backup_file_target)
         
         print("[7/10] Mengunduh paket update dari GitHub...")
         zip_path = os.path.join(temp_dir, "update.zip")
@@ -194,8 +193,8 @@ def run_update(github_zip_url: str, target_path_input: str, version_arg: str = N
         
     except Exception as e:
         print(f"\n[ERROR] Update gagal: {e}")
-        if os.path.exists(backup_path):
-            shutil.copy2(backup_path, target_file)
+        if os.path.exists(backup_file_target):
+            shutil.copy2(backup_file_target, target_file)
             print("Dipulihkan kembali dari file backup.")
         if sys.stdin.isatty():
             input("\nTekan Enter untuk keluar...")
