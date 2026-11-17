@@ -6,8 +6,8 @@ from config import CONFIG
 
 def extract_excel_components(excel_path: str, output_dir: str):
     """
-    Mengekstrak hanya folder 'xl' dan 'customUI' dari dalam file .xlsb/.xlsm 
-    ke dalam folder tujuan secara bersih.
+    Mengekstrak HANYA 'xl/vbaProject.bin' (serta menjaga struktur foldernya) 
+    dari dalam file .xlsb/.xlsm ke dalam folder tujuan.
     """
     if not os.path.exists(excel_path):
         print(f"[ERROR] File Excel tidak ditemukan: {excel_path}")
@@ -16,16 +16,23 @@ def extract_excel_components(excel_path: str, output_dir: str):
     try:
         os.makedirs(output_dir, exist_ok=True)
         
+        extracted = False
         with zipfile.ZipFile(excel_path, 'r') as zf:
             for member in zf.namelist():
                 norm_member = member.replace('\\', '/')
-                if norm_member.startswith('xl/') or norm_member.startswith('customUI/'):
+                # Hanya ambil file vbaProject.bin di dalam folder xl/
+                if norm_member.lower() == 'xl/vbaproject.bin':
                     zf.extract(member, output_dir)
+                    extracted = True
+                    break
                     
-        print(f"\n[OK] Berhasil mengekstrak komponen (xl & customUI) ke folder: {output_dir}")
+        if extracted:
+            print(f"\n[OK] Berhasil mengekstrak xl/vbaProject.bin ke folder: {output_dir}")
+        else:
+            print(f"\n[WARNING] File vbaProject.bin tidak ditemukan di dalam file Excel tersebut.")
         
     except Exception as e:
-        print(f"\n[ERROR] Gagal mengekstrak komponen Excel: {e}")
+        print(f"\n[ERROR] Gagal mengekstrak vbaProject.bin: {e}")
         sys.exit(1)
 
 def get_running_dir() -> str:
@@ -67,7 +74,7 @@ def main():
         sys.exit(1)
         
     print("\n" + "=" * 60)
-    print(" PILIH FILE EXCEL YANG AKAN DIEKSTRAK:")
+    print(" PILIH FILE EXCEL YANG AKAN DIEKSTRAK (vbaProject.bin):")
     print("=" * 60)
     for idx, ef in enumerate(excel_files):
         print(f"  [{idx + 1}] {ef['name']}")
