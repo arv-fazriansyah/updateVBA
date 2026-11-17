@@ -6,9 +6,9 @@ import tempfile
 import shutil
 from config import CONFIG
 
-def get_zip_subfolders(zip_url: str) -> dict:
-    """Mengunduh ZIP dari GitHub dan memindai semua subfolder utama di dalamnya."""
-    print("[1/3] Menghubungkan ke GitHub untuk memindai daftar folder...")
+def get_zip_excel_files(zip_url: str) -> tuple:
+    """Mengunduh ZIP dari GitHub dan memindai semua file Excel (.xlsb / .xlsm) di dalamnya."""
+    print("[1/3] Menghubungkan ke GitHub untuk memindai daftar file Excel...")
     temp_dir = tempfile.mkdtemp()
     try:
         zip_path = os.path.join(temp_dir, "repo.zip")
@@ -18,94 +18,81 @@ def get_zip_subfolders(zip_url: str) -> dict:
         with zipfile.ZipFile(zip_path, 'r') as zf:
             zf.extractall(extract_dir)
             
-        # Cari subfolder utama di dalam root extract (misal: "ARB 2026", "ARB 2027", dll)
-        folders = []
+        # Cari semua file .xlsb atau .xlsm di dalam arsip ZIP
+        excel_files = []
         for root, dirs, files in os.walk(extract_dir):
-            # Ambil level pertama subfolder di dalam extract_dir utama
-            rel_path = os.path.relpath(root, extract_dir)
-            if rel_path != "." and rel_path.count(os.sep) == 1:
-                folders.append(os.path.basename(root))
-                
-        # Jika tidak ketemu level 1, cari folder yang memiliki file customUI atau xl
-        if not folders:
-            for root, dirs, files in os.walk(extract_dir):
-                if 'customUI' in dirs or 'xl' in dirs:
-                    folders.append(os.path.basename(root))
+            for file in files:
+                if file.endswith(('.xlsb', '.xlsm')):
+                    full_path = os.path.join(root, file)
+                    rel_path = os.path.relpath(full_path, extract_dir)
+                    excel_files.append({
+                        "name": file,
+                        "rel_path": rel_path,
+                        "full_path": full_path,
+                        "parent_dir": os.path.dirname(full_path)
+                    })
                     
-        return list(set(folders)), extract_dir, temp_dir
+        return excel_files, extract_dir, temp_dir
     except Exception as e:
-        print(f"[ERROR] Gagal memindai folder dari GitHub: {e}")
+        print(f"[ERROR] Gagal memindai file dari GitHub: {e}")
         shutil.rmtree(temp_dir)
         sys.exit(1)
 
-def interactive_extract():
-    print(f"=== EKSTRAKTOR FOLDER ARB (INTERAKTIF) ===")
+def interactive_extract_excel():
+    print(f"=== EKSTRAKTOR FILE EXCEL ARB ({CONFIG['TARGET_YEAR']}) ===")
     
     zip_url = CONFIG["GITHUB_ZIP_URL"]
-    available_folders, extract_dir, temp_dir = get_zip_subfolders(zip_url)
+    excel_files, extract_dir, temp_dir = get_zip_excel_files(zip_url)
     
-    if not available_folders:
-        print("[ERROR] Tidak ada folder yang ditemukan di dalam arsip GitHub!")
+    if not excel_files:
+        print("[ERROR] Tidak ditemukan file Excel (.xlsb/.xlsm) di dalam arsip GitHub!")
         shutil.rmtree(temp_dir)
         sys.exit(1)
         
-    print("\n" + "=" * 60)
-    print(" PILIH FOLDER YANG AKAN DIEKSTRAK:")
-    print("=" * 60)
-    for idx, folder_name in enumerate(available_folders):
-        print(f"  [{idx + 1}] {folder_name}")
-    print("=" * 60)
+    print("\n" + "=" * 70)
+    print(" DAFTAR FILE EXCEL YANG DITEMUKAN DI GITHUB:")
+    print("=" * 70)
+    for idx, ef in enumerate(excel_files):
+        print(f"  [{idx + 1}] {ef['name']}  (path: {ef['rel_path']})")
+    print("=" * 70)
     
     while True:
-        choice = input(f"Pilih nomor folder [1-{len(available_folders)}] (atau Ctrl+C untuk batal): ").strip()
+        choice = input(f"Pilih nomor file Excel yang ingin diekstrak [1-{len(excel_files)}] (atau Ctrl+C untuk batal): ").strip()
         try:
             sel_idx = int(choice) - 1
-            if 0 <= sel_idx < len(available_folders):
-                selected_folder = available_folders[sel_idx]
-                print(f"\n[OK] Anda memilih: {selected_folder}\n")
+            if 0 <= sel_idx < len(excel_files):
+                selected_file = excel_files[sel_idx]
+                print(f"\n[OK] Anda memilih: {selected_file['name']}\n")
                 break
             else:
                 print("[ERROR] Nomor pilihan tidak valid. Silakan coba lagi.")
         except ValueError:
             print("[ERROR] Masukkan angka yang valid.")
             
-    # Tentukan direktori saat ini (tempat script/exe berada)
+    # Direktori tujuan: folder "ARB 2027" di direktori saat ini
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    output_dir = os.path.join(current_dir, "ARB 2027")
+    output_dir = os.path.join(current_dir, f"ARB {CONFIG['TARGET_YEAR']}")
     
-    print(f"[2/3] Menyalin folder '{selected_folder}' ke direktori lokal...")
+    print(f"[2/3] Menyimpan file '{selected_file['name']}' ke direktori lokal...")
     print(f"       Tujuan: {output_dir}")
     
     try:
-        source_path = None
-        for root, dirs, files in os.walk(extract_dir):
-            if os.path.basename(root).lower() == selected_folder.lower():
-                source_path = root
-                break
-                
-        if not source_path:
-            print(f"[ERROR] Path sumber untuk '{selected_folder}' tidak ditemukan.")
-            sys.exit(1)
-            
         os.makedirs(output_dir, exist_ok=True)
-        dest_path = os.path.join(output_dir, selected_folder)
+        dest_file_path = os.path.join(output_dir, selected_file['name'])
         
-        if os.path.exists(dest_path):
-            shutil.rmtree(dest_path)
-            
-        shutil.copytree(source_path, dest_path)
+        shutil.copy2(selected_file['full_path'], dest_file_path)
         
         print("\n" + "=" * 50)
-        print("[OK] EKSTRAK FOLDER SELESAI DENGAN SUKSES!")
-        print(f"Disimpan di: {dest_path}")
+        print("[OK] EKSTRAK FILE EXCEL SELESAI DENGAN SUKSES!")
+        print(f"Disimpan di: {dest_file_path}")
         print("=" * 50)
         
     except Exception as e:
-        print(f"\n[ERROR] Gagal menyimpan folder: {e}")
+        print(f"\n[ERROR] Gagal menyimpan file: {e}")
     finally:
         shutil.rmtree(temp_dir)
         if sys.stdin.isatty():
             input("\nTekan Enter untuk keluar...")
 
 if __name__ == "__main__":
-    interactive_extract()
+    interactive_extract_excel()
