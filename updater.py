@@ -115,6 +115,8 @@ def run_update(github_zip_url: str, target_path_input: str, version_arg: str = N
             
         print(f"[6/10] Membuat backup file ke folder: {CONFIG['BACKUP_FOLDER_NAME']}...")
         os.makedirs(backup_dir, exist_ok=True)
+        # Salin file asli ke folder backup DAN buat file .bak internal
+        shutil.copy2(target_file, backup_dir)
         shutil.copy2(target_file, backup_path)
         
         print("[7/10] Mengunduh paket update dari GitHub...")
