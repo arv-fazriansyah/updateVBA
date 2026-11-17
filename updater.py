@@ -1,4 +1,5 @@
 import os
+import sys
 import zipfile
 import urllib.request
 import tempfile
@@ -119,11 +120,16 @@ class UpdaterGUI(ctk.CTk):
 
     def _run_update(self):
         target_file = self.target_file
-        source_dir = os.path.dirname(target_file)
         file_name = os.path.basename(target_file)
         target_year = CONFIG["TARGET_YEAR"]
 
-        new_dir = os.path.join(source_dir, CONFIG["NEW_VERSION_FOLDER_NAME"])
+        # Output disimpan di direktori tempat updater.exe/.py berada
+        if getattr(sys, 'frozen', False):
+            app_dir = os.path.dirname(os.path.abspath(sys.executable))
+        else:
+            app_dir = os.path.dirname(os.path.abspath(__file__))
+
+        new_dir = os.path.join(app_dir, CONFIG["NEW_VERSION_FOLDER_NAME"])
         new_file = os.path.join(new_dir, file_name)
 
         temp_dir = tempfile.mkdtemp()
